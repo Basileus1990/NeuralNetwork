@@ -4,9 +4,9 @@ type layer struct {
 	nodes []node
 }
 
-func (myLayer *layer) initializeLayer(numberOfLayers int, numberOfNodes int, numberOfFollowingNodes int) {
+func (myLayer *layer) initializeLayer(numberOfLayers int, numberOfNodes int, prevLayer *layer, nextLayer *layer) {
 	myLayer.nodes = make([]node, numberOfNodes)
 	for i := range myLayer.nodes {
-		myLayer.nodes[i].initializeNode(numberOfFollowingNodes)
+		myLayer.nodes[i].initializeNode(prevLayer, nextLayer)
 	}
 }
