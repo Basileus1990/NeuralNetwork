@@ -3,6 +3,8 @@ package NeuralNetwork
 import (
 	"errors"
 	"fmt"
+	"math/rand"
+	"time"
 )
 
 // Contains all networks created to the task
@@ -23,6 +25,9 @@ effect:
 	returns initialized networks ready to be given data and to be trained
 */
 func NewNeuralNetwork(numberOfTrainingNetworks int, numberOfLayers int, nodesPerLayer []int) (*neuralNetwork, error) {
+	// A seed for a random initial network state
+	rand.Seed(time.Now().UnixNano())
+
 	if err := validateNetworkInitArguments(numberOfTrainingNetworks, numberOfLayers, nodesPerLayer); err != nil {
 		return nil, err
 	}

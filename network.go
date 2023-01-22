@@ -7,6 +7,10 @@ type network struct {
 func (myNetwork *network) initializeNetwork(numberOfLayers int, nodesPerLayer []int) {
 	myNetwork.layers = make([]layer, numberOfLayers)
 	for i := range myNetwork.layers {
+		if len(myNetwork.layers) == 1 {
+			myNetwork.layers[i].initializeLayer(numberOfLayers, nodesPerLayer[i], nil, nil)
+			continue
+		}
 		if i == 0 {
 			myNetwork.layers[i].initializeLayer(numberOfLayers, nodesPerLayer[i], nil, &myNetwork.layers[i+1])
 			continue
