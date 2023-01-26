@@ -16,19 +16,18 @@ type neuralNetwork struct {
 require:
 
 	numberOfTrainingNetworks >= 1
-	numberOfLayers > 0
 	nodesPerLayer[i] > 0
-	len(nodesPerLayer) == numberOfLayers
+	len(nodesPerLayer) > 0
 
 effect:
 
 	returns initialized networks ready to be given data and to be trained
 */
-func NewNeuralNetwork(numberOfTrainingNetworks int, numberOfLayers int, nodesPerLayer []int) (*neuralNetwork, error) {
+func NewNeuralNetwork(numberOfTrainingNetworks int, nodesPerLayer []int) (*neuralNetwork, error) {
 	// A seed for a random initial network state
 	rand.Seed(time.Now().UnixNano())
 
-	if err := validateNetworkInitArguments(numberOfTrainingNetworks, numberOfLayers, nodesPerLayer); err != nil {
+	if err := validateNetworkInitArguments(numberOfTrainingNetworks, nodesPerLayer); err != nil {
 		return nil, err
 	}
 
@@ -36,7 +35,7 @@ func NewNeuralNetwork(numberOfTrainingNetworks int, numberOfLayers int, nodesPer
 	var myNeuralNetwork neuralNetwork
 	myNeuralNetwork.networks = make([]network, numberOfTrainingNetworks)
 	for i := range myNeuralNetwork.networks {
-		myNeuralNetwork.networks[i].initializeNetwork(numberOfLayers, nodesPerLayer)
+		myNeuralNetwork.networks[i].initializeNetwork(nodesPerLayer)
 	}
 	return &myNeuralNetwork, nil
 }
@@ -58,19 +57,28 @@ func (myNeuralNetwork *neuralNetwork) PrintNetworkSchema() {
 	fmt.Println("<========================>")
 }
 
-func validateNetworkInitArguments(numberOfTrainingNetworks int, numberOfLayers int, nodesPerLayer []int) error {
+func (myNeuralNetwork *neuralNetwork) GetLenOfInNodes() int {
+	return len(myNeuralNetwork.networks[0].layers[0].nodes)
+}
+
+func (myNeuralNetwork *neuralNetwork) GetLenOfOutNodes() int {
+	return len(myNeuralNetwork.networks[0].layers[len(myNeuralNetwork.networks[0].layers)-1].nodes)
+}
+
+func (myNeuralNetwork *neuralNetwork) CalculateOutput() []float64 {
+	return []float64{1.0}
+}
+
+func validateNetworkInitArguments(numberOfTrainingNetworks int, nodesPerLayer []int) error {
 	if numberOfTrainingNetworks <= 0 {
 		return errors.New("number of training networks has to bigger than 0")
 	}
-	if numberOfLayers <= 0 {
-		return errors.New("number of layers has to bigger than 0")
-	}
-	if len(nodesPerLayer) != numberOfLayers {
-		return errors.New("the specified number of nodes per layer has to be same as the number of layers")
+	if len(nodesPerLayer) <= 0 {
+		return errors.New("number of layers has to bi bigger than 0")
 	}
 	for _, v := range nodesPerLayer {
 		if v <= 0 {
-			return errors.New("number of nodes can't be lower than 1")
+			return errors.New("number of nodes per layer can't be lower than 1")
 		}
 	}
 
