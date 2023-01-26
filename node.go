@@ -15,13 +15,13 @@ func (myNode *node) initializeNode(prevLayer *layer, nextLayer *layer) {
 	myNode.prevLayer = prevLayer
 	myNode.nextLayer = nextLayer
 
-	myNode.bias = float64(rand.Intn(101)) / 100
+	myNode.bias = float64(rand.Intn(10001)) / 10000
 	if myNode.nextLayer == nil {
 		return
 	}
 
 	myNode.weights = make([]float64, len((*nextLayer).nodes))
 	for i := range myNode.weights {
-		myNode.weights[i] = float64(rand.Intn(101)) / 100
+		myNode.weights[i] = float64(rand.Intn(10001)) / 10000
 	}
 }
