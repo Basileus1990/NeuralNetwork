@@ -13,15 +13,15 @@ type neuralNetwork struct {
 }
 
 /*
-require:
+parameters:
 
 	numberOfTrainingNetworks >= 1
 	nodesPerLayer[i] > 0
 	len(nodesPerLayer) > 0
 
-effect:
+Retrun:
 
-	returns initialized networks ready to be given data and to be trained
+	initialized networks ready to be given data and to be trained
 */
 func NewNeuralNetwork(numberOfTrainingNetworks int, nodesPerLayer []int) (*neuralNetwork, error) {
 	// A seed for a random initial network state
@@ -65,8 +65,12 @@ func (myNeuralNetwork *neuralNetwork) GetLenOfOutNodes() int {
 	return len(myNeuralNetwork.networks[0].layers[len(myNeuralNetwork.networks[0].layers)-1].nodes)
 }
 
-func (myNeuralNetwork *neuralNetwork) CalculateOutput() []float64 {
-	return []float64{1.0}
+func (myNeuralNetwork *neuralNetwork) GetOutputMap(inputData []int, outputLabels []string) map[string]float64 {
+	return nil
+}
+
+func (myNeuralNetwork *neuralNetwork) GetBestOutput() (string, float64) {
+	return "", 0
 }
 
 func validateNetworkInitArguments(numberOfTrainingNetworks int, nodesPerLayer []int) error {

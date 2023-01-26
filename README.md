@@ -24,6 +24,7 @@ email: pawelb021@gmail.com
 ## Table of Contents
 
 * [About the Project](#about-the-project)
+    * [TODO](#TODO)
     * [Built With](#built-with)
 * [Getting Started](#getting-started)
     * [Prerequisites](#prerequisites)
@@ -44,6 +45,20 @@ $This is a neural network using back propagation and evolution algorithm.
 
 ### Built With
 % To be added
+
+### TODO:
+1. Make the network work
+    * [] Calculate and return map of outputs or best outputs
+    * [] Training
+        * [] Calculating the cost
+        * [] Evolution algorithm
+        * [] Back propagation algorithm
+    * [] Algorithms and neuralNetwork can be configured from a JSON file
+    * 
+2. Make it easier to use photos
+    * [] Automaticly resize user photo
+    * [] Convert the photo to input data
+
 
 
 

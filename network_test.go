@@ -2,13 +2,14 @@ package NeuralNetwork
 
 import "testing"
 
-func TestSchemaPrint(t *testing.T) {
-	myNetwork, err := NewNeuralNetwork(1, []int{3, 10, 10, 10, 3})
+// used for presenting the network for the developer
+/*func TestSchemaPrint(t *testing.T) {
+	myNetwork, err := NewNeuralNetwork(1, []int{10, 20, 50, 60, 80, 100, 500, 100000, 1, 1})
 	if err != nil {
 		t.Fatal(err)
 	}
 	myNetwork.PrintNetworkSchema()
-}
+}*/
 
 func TestGoodInputData(t *testing.T) {
 	const numberOfNetworks = 1
@@ -52,7 +53,7 @@ func TestBadInputData(t *testing.T) {
 
 // tests wheter all networks are created with the same structure
 func TestMultipleNetworks(t *testing.T) {
-	const numberOfNetworks = 10
+	const numberOfNetworks = 1000
 	data := []int{10, 20, 50, 60, 80, 100, 500, 1000, 1, 1}
 	myNetwork, err := NewNeuralNetwork(numberOfNetworks, data)
 	if err != nil {
