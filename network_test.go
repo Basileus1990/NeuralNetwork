@@ -11,24 +11,29 @@ import "testing"
 	myNetwork.PrintNetworkSchema()
 }*/
 
+type testStructureData struct {
+	nodesPerLayer []int
+	outputLabels  []string
+}
+
 func TestGoodInputData(t *testing.T) {
 	const numberOfNetworks = 1
-	GoodStructureData := [][]int{
-		{3, 10, 10, 10, 3},
-		{10, 20, 50, 60, 80, 100, 500, 1000, 1, 1},
-		{999},
+	GoodStructureData := []testStructureData{
+		{[]int{3, 10, 10, 10, 3}, []string{"a", "a", "a"}},
+		{[]int{10, 20, 50, 60, 80, 100, 500, 1000, 1, 1}, []string{""}},
+		{[]int{999, 1}, []string{""}},
 	}
 	for _, data := range GoodStructureData {
-		myNetwork, err := NewNeuralNetwork(numberOfNetworks, data)
+		myNetwork, err := NewNeuralNetwork(numberOfNetworks, data.nodesPerLayer, data.outputLabels)
 		if err != nil {
 			t.Fatal(data, err)
 		}
 
-		if len(myNetwork.networks[0].layers) != len(data) {
+		if len(myNetwork.networks[0].layers) != len(data.nodesPerLayer) {
 			t.Fatal("Number of layers is wrong")
 		}
 		for i, layer := range myNetwork.networks[0].layers {
-			if len(layer.nodes) != data[i] {
+			if len(layer.nodes) != data.nodesPerLayer[i] {
 				t.Fatal("Number of nodes per layer")
 			}
 		}
@@ -37,16 +42,18 @@ func TestGoodInputData(t *testing.T) {
 
 func TestBadInputData(t *testing.T) {
 	const numberOfNetworks = 1
-	BadStructureData := [][]int{
-		{},
-		{10, 20, 0, 60, 0, 100, 500, 1000, 1},
-		{0},
-		{-10},
+	BadStructureData := []testStructureData{
+		{[]int{}, []string{}},
+		{[]int{10, 20, 0, 60, 0, 100, 500, 1000, 1}, []string{""}},
+		{[]int{0}, []string{}},
+		{[]int{-10}, []string{}},
+		{[]int{3}, []string{""}},
+		{[]int{3}, []string{"", "", "", "", ""}},
 	}
 	for _, data := range BadStructureData {
-		_, err := NewNeuralNetwork(numberOfNetworks, data)
+		_, err := NewNeuralNetwork(numberOfNetworks, data.nodesPerLayer, data.outputLabels)
 		if err == nil {
-			t.Fatal("Bad data got through: ", data)
+			t.Fatal("Bad data got through: ", data.nodesPerLayer)
 		}
 	}
 }
@@ -54,8 +61,8 @@ func TestBadInputData(t *testing.T) {
 // tests wheter all networks are created with the same structure
 func TestMultipleNetworks(t *testing.T) {
 	const numberOfNetworks = 1000
-	data := []int{10, 20, 50, 60, 80, 100, 500, 1000, 1, 1}
-	myNetwork, err := NewNeuralNetwork(numberOfNetworks, data)
+	data := testStructureData{[]int{10, 20, 50, 60, 80, 100, 500, 1000, 1, 1}, []string{""}}
+	myNetwork, err := NewNeuralNetwork(numberOfNetworks, data.nodesPerLayer, data.outputLabels)
 	if err != nil {
 		t.Fatal(data, err)
 	}
