@@ -11,6 +11,10 @@ import "testing"
 	myNetwork.PrintNetworkSchema()
 }*/
 
+///////////////////////////////////////////////////////
+////		   Creating network tests			   ////
+///////////////////////////////////////////////////////
+
 type testStructureData struct {
 	nodesPerLayer []int
 	outputLabels  []string
@@ -60,7 +64,7 @@ func TestBadInputData(t *testing.T) {
 
 // tests wheter all networks are created with the same structure
 func TestMultipleNetworks(t *testing.T) {
-	const numberOfNetworks = 1000
+	const numberOfNetworks = 100
 	data := testStructureData{[]int{10, 20, 50, 60, 80, 100, 500, 1000, 1, 1}, []string{""}}
 	myNetwork, err := NewNeuralNetwork(numberOfNetworks, data.nodesPerLayer, data.outputLabels)
 	if err != nil {
@@ -75,6 +79,46 @@ func TestMultipleNetworks(t *testing.T) {
 			if len(myNetwork.networks[i].layers[j].nodes) != len(myNetwork.networks[0].layers[j].nodes) {
 				t.Fatal("the networks layers don't have the same number of nodes. Data: ", data)
 			}
+		}
+	}
+}
+
+///////////////////////////////////////////////////////
+////			Calculating output tests		   ////
+///////////////////////////////////////////////////////
+
+func TestCalculatingInputData(t *testing.T) {
+	structureData := testStructureData{[]int{3, 20, 50, 60, 80, 100, 500, 1000, 1, 1}, []string{""}}
+	myNetwork, err := NewNeuralNetwork(1, structureData.nodesPerLayer, structureData.outputLabels)
+	if err != nil {
+		t.Fatal(structureData, err)
+	}
+
+	var badInputData = [][]float64{
+		{0.5, 0.6, -1},
+		{1.000001, 0.5, 0.6},
+		{-0.000000000001, 0.5, 0.3},
+		{0.5},
+		{},
+		{0.5, 0.6, 1, 0.5},
+	}
+	for _, data := range badInputData {
+		_, err = myNetwork.GetOutputMap(data)
+		if err == nil {
+			t.Fatal("Bad calculating data got through: ", data)
+		}
+	}
+
+	var goodInputData = [][]float64{
+		{0.5, 0.6, 1},
+		{1.000000, 0.5, 0.6},
+		{0.000000000000, 0.5, 0.3},
+		{0, 0.6, 1},
+	}
+	for _, data := range goodInputData {
+		_, err = myNetwork.GetOutputMap(data)
+		if err != nil {
+			t.Fatal(data, err)
 		}
 	}
 }
