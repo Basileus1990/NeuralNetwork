@@ -1,6 +1,7 @@
-package NeuralNetwork
+package network
 
 import (
+	"math"
 	"math/rand"
 )
 
@@ -36,5 +37,5 @@ func (myNode *node) calculateNextNodes() {
 }
 
 func (myNode *node) sigmoidize() {
-	myNode.value = sigmoid(myNode.value)
+	myNode.value = 1.0 / (1 + math.Exp(myNode.value))
 }

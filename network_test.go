@@ -35,11 +35,12 @@ func TestGoodInputData(t *testing.T) {
 			t.Fatal(data, err)
 		}
 
-		if len(myNetwork.networks[0].layers) != len(data.nodesPerLayer) {
+		numberOfLayers, nodesPerLayer := myNetwork.networks[0].NetworkStructure()
+		if numberOfLayers != len(data.nodesPerLayer) {
 			t.Fatal("Number of layers is wrong")
 		}
-		for i, layer := range myNetwork.networks[0].layers {
-			if len(layer.nodes) != data.nodesPerLayer[i] {
+		for i, nodes := range nodesPerLayer {
+			if nodes != data.nodesPerLayer[i] {
 				t.Fatal("Number of nodes per layer")
 			}
 		}
@@ -73,12 +74,14 @@ func TestMultipleNetworks(t *testing.T) {
 		t.Fatal(data, err)
 	}
 
+	firstNumberOfLayers, firstNodesPerLayer := myNetwork.networks[0].NetworkStructure()
 	for i := 1; i < numberOfNetworks; i++ {
-		if len(myNetwork.networks[i].layers) != len(myNetwork.networks[0].layers) {
+		numberOfLayers, nodesPerLayer := myNetwork.networks[i].NetworkStructure()
+		if numberOfLayers != firstNumberOfLayers {
 			t.Fatal("the networks don't have the same number of layers. Data: ", data)
 		}
-		for j := 0; j < len(myNetwork.networks[0].layers); j++ {
-			if len(myNetwork.networks[i].layers[j].nodes) != len(myNetwork.networks[0].layers[j].nodes) {
+		for j := 0; j < firstNumberOfLayers; j++ {
+			if nodesPerLayer[j] != firstNodesPerLayer[j] {
 				t.Fatal("the networks layers don't have the same number of nodes. Data: ", data)
 			}
 		}

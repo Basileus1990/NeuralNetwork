@@ -3,15 +3,16 @@ package NeuralNetwork
 import (
 	"errors"
 	"fmt"
-	"math"
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/Basileus1990/NeuralNetwork.git/network"
 )
 
 // Contains all networks created to the task
 type neuralNetwork struct {
-	networks     []network
+	networks     []network.Network
 	outputLabels []string
 }
 
@@ -35,27 +36,22 @@ func NewNeuralNetwork(numberOfTrainingNetworks int, nodesPerLayer []int, outputL
 
 	// initialize networks
 	var myNeuralNetwork neuralNetwork
-	myNeuralNetwork.networks = make([]network, numberOfTrainingNetworks)
+	myNeuralNetwork.networks = make([]network.Network, numberOfTrainingNetworks)
 	myNeuralNetwork.outputLabels = outputLabels
 	for i := range myNeuralNetwork.networks {
-		myNeuralNetwork.networks[i].initializeNetwork(nodesPerLayer)
+		myNeuralNetwork.networks[i].InitializeNetwork(nodesPerLayer)
 	}
 	return &myNeuralNetwork, nil
 }
 
 // If network is not initialized then informs the user about it
 func (myNeuralNetwork *neuralNetwork) PrintNetworkSchema() {
-	if myNeuralNetwork == nil {
-		fmt.Println("Network hasn't been initialized")
-		return
-	}
-
-	printedNetwork := myNeuralNetwork.networks[0]
+	_, nodesPerLayer := myNeuralNetwork.networks[0].NetworkStructure()
 
 	fmt.Println("<========================>")
 	fmt.Println(" A neural network schema:")
-	for i, myLayer := range printedNetwork.layers {
-		fmt.Printf(" Layer %d: %d nodes\n", i, len(myLayer.nodes))
+	for i, nodes := range nodesPerLayer {
+		fmt.Printf(" Layer %d: %d nodes\n", i, nodes)
 	}
 	fmt.Println("<========================>")
 }
@@ -77,7 +73,7 @@ func (myNeuralNetwork *neuralNetwork) GetOutputMap(inputData []float64) (map[str
 		return nil, err
 	}
 	resultMap := make(map[string]float64)
-	resultSlice := myNeuralNetwork.networks[0].getOutputValuesSlice() // FIXME:
+	resultSlice := myNeuralNetwork.networks[0].GetOutputValuesSlice() // FIXME:
 	for i := range resultSlice {
 		resultMap[myNeuralNetwork.outputLabels[i]] = resultSlice[i]
 	}
@@ -100,11 +96,13 @@ func (myNeuralNetwork *neuralNetwork) GetBestOutput(inputData []float64) (string
 }
 
 func (myNeuralNetwork *neuralNetwork) GetLenOfInNodes() int {
-	return len(myNeuralNetwork.networks[0].layers[0].nodes)
+	_, nodes := myNeuralNetwork.networks[0].NetworkStructure()
+	return nodes[0]
 }
 
 func (myNeuralNetwork *neuralNetwork) GetLenOfOutNodes() int {
-	return len(myNeuralNetwork.networks[0].layers[len(myNeuralNetwork.networks[0].layers)-1].nodes)
+	numberOfLayers, nodes := myNeuralNetwork.networks[0].NetworkStructure()
+	return nodes[numberOfLayers-1]
 }
 
 func (myNeuralNetwork *neuralNetwork) calculateOutputs(inputData []float64) error {
@@ -118,13 +116,13 @@ func (myNeuralNetwork *neuralNetwork) calculateOutputs(inputData []float64) erro
 		var wg sync.WaitGroup
 		for i := range myNeuralNetwork.networks {
 			wg.Add(1)
-			myNeuralNetwork.networks[i].calculateOutput(&wg, inputData)
+			go myNeuralNetwork.networks[i].CalculateOutput(&wg, inputData)
 		}
 
 		wg.Wait()
 	} else {
 		for i := range myNeuralNetwork.networks {
-			myNeuralNetwork.networks[i].calculateOutput(nil, inputData)
+			myNeuralNetwork.networks[i].CalculateOutput(nil, inputData)
 		}
 	}
 	return nil
@@ -159,8 +157,4 @@ func validateNetworkInitArguments(numberOfTrainingNetworks int, nodesPerLayer []
 	}
 
 	return nil
-}
-
-func sigmoid(z float64) float64 {
-	return 1.0 / (1 + math.Exp(-z))
 }

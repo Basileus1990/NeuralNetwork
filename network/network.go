@@ -1,12 +1,12 @@
-package NeuralNetwork
+package network
 
 import "sync"
 
-type network struct {
+type Network struct {
 	layers []layer
 }
 
-func (net *network) initializeNetwork(nodesPerLayer []int) {
+func (net *Network) InitializeNetwork(nodesPerLayer []int) {
 	net.layers = make([]layer, len(nodesPerLayer))
 	for i := range net.layers {
 		if len(net.layers) == 1 {
@@ -23,7 +23,17 @@ func (net *network) initializeNetwork(nodesPerLayer []int) {
 	}
 }
 
-func (net *network) calculateOutput(wg *sync.WaitGroup, inputData []float64) {
+// returns the structure of the network - number of layers and nodes per layer
+func (net *Network) NetworkStructure() (int, []int) {
+	numberOfLayers := len(net.layers)
+	nodesPerLayer := make([]int, numberOfLayers)
+	for i := range nodesPerLayer {
+		nodesPerLayer[i] = len(net.layers[i].nodes)
+	}
+	return len(net.layers), nodesPerLayer
+}
+
+func (net *Network) CalculateOutput(wg *sync.WaitGroup, inputData []float64) {
 	if wg != nil {
 		defer wg.Done()
 	}
@@ -44,7 +54,7 @@ func (net *network) calculateOutput(wg *sync.WaitGroup, inputData []float64) {
 	}
 }
 
-func (net *network) getOutputValuesSlice() []float64 {
+func (net *Network) GetOutputValuesSlice() []float64 {
 	output := make([]float64, len(net.layers[len(net.layers)-1].nodes))
 	for i := range output {
 		output[i] = net.layers[len(net.layers)-1].nodes[i].value

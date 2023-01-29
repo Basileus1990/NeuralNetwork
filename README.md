@@ -48,7 +48,9 @@ $This is a neural network using back propagation and evolution algorithm.
 
 ### TODO:
 1. Make the network work
-    * [ ] Calculate and return map of outputs or best outputs
+    * [X] Calculate and return map of outputs or best outputs
+    * [X] Refactor network structure
+    * [ ] Add some test to directly test single network
     * [ ] Training
         * [ ] Calculating the cost
         * [ ] Evolution algorithm

@@ -1,4 +1,4 @@
-package NeuralNetwork
+package network
 
 type layer struct {
 	nodes []node
