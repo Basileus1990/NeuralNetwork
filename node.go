@@ -1,6 +1,8 @@
 package NeuralNetwork
 
-import "math/rand"
+import (
+	"math/rand"
+)
 
 type node struct {
 	value     float64
@@ -11,17 +13,28 @@ type node struct {
 }
 
 // gives the node random weights and biases
-func (myNode *node) initializeNode(prevLayer *layer, nextLayer *layer) {
+func (myNode *node) initializeNode(prevLayer *layer, nextLayer *layer, numberOfNextNodes int) {
 	myNode.prevLayer = prevLayer
 	myNode.nextLayer = nextLayer
 
-	myNode.bias = float64(rand.Intn(10001)) / 10000
-	if myNode.nextLayer == nil {
+	myNode.bias = float64(rand.Intn(20001))/10000 - 1
+
+	if nextLayer == nil {
 		return
 	}
-
-	myNode.weights = make([]float64, len((*nextLayer).nodes))
+	myNode.weights = make([]float64, numberOfNextNodes)
 	for i := range myNode.weights {
-		myNode.weights[i] = float64(rand.Intn(10001)) / 10000
+		myNode.weights[i] = float64(rand.Intn(20001))/10000 - 1
 	}
+}
+
+func (myNode *node) calculateNextNodes() {
+	for i := range myNode.nextLayer.nodes {
+		addedValue := myNode.value*myNode.weights[i] + myNode.bias
+		myNode.nextLayer.nodes[i].value += addedValue
+	}
+}
+
+func (myNode *node) sigmoidize() {
+	myNode.value = sigmoid(myNode.value)
 }

@@ -3,7 +3,9 @@ package NeuralNetwork
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -70,11 +72,16 @@ Returns:
 */
 // TODO:
 func (myNeuralNetwork *neuralNetwork) GetOutputMap(inputData []float64) (map[string]float64, error) {
-	err := myNeuralNetwork.validateInputData(inputData)
+	err := myNeuralNetwork.calculateOutputs(inputData)
 	if err != nil {
 		return nil, err
 	}
-	return nil, nil
+	resultMap := make(map[string]float64)
+	resultSlice := myNeuralNetwork.networks[0].getOutputValuesSlice() // FIXME:
+	for i := range resultSlice {
+		resultMap[myNeuralNetwork.outputLabels[i]] = resultSlice[i]
+	}
+	return resultMap, nil
 }
 
 /*
@@ -100,9 +107,27 @@ func (myNeuralNetwork *neuralNetwork) GetLenOfOutNodes() int {
 	return len(myNeuralNetwork.networks[0].layers[len(myNeuralNetwork.networks[0].layers)-1].nodes)
 }
 
-// TODO:
-func (myNeuralNetwork *neuralNetwork) calculateOutput() {
+func (myNeuralNetwork *neuralNetwork) calculateOutputs(inputData []float64) error {
+	err := myNeuralNetwork.validateInputData(inputData)
+	if err != nil {
+		return err
+	}
 
+	const concurrentThershold = 5
+	if len(myNeuralNetwork.networks) > concurrentThershold {
+		var wg sync.WaitGroup
+		for i := range myNeuralNetwork.networks {
+			wg.Add(1)
+			myNeuralNetwork.networks[i].calculateOutput(&wg, inputData)
+		}
+
+		wg.Wait()
+	} else {
+		for i := range myNeuralNetwork.networks {
+			myNeuralNetwork.networks[i].calculateOutput(nil, inputData)
+		}
+	}
+	return nil
 }
 
 func (myNeuralNetwork *neuralNetwork) validateInputData(inputData []float64) error {
@@ -134,4 +159,8 @@ func validateNetworkInitArguments(numberOfTrainingNetworks int, nodesPerLayer []
 	}
 
 	return nil
+}
+
+func sigmoid(z float64) float64 {
+	return 1.0 / (1 + math.Exp(-z))
 }

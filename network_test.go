@@ -1,6 +1,8 @@
 package NeuralNetwork
 
-import "testing"
+import (
+	"testing"
+)
 
 // used for presenting the network for the developer
 /*func TestSchemaPrint(t *testing.T) {
@@ -65,7 +67,7 @@ func TestBadInputData(t *testing.T) {
 // tests wheter all networks are created with the same structure
 func TestMultipleNetworks(t *testing.T) {
 	const numberOfNetworks = 100
-	data := testStructureData{[]int{10, 20, 50, 60, 80, 100, 500, 1000, 1, 1}, []string{""}}
+	data := testStructureData{[]int{10, 20, 50, 60, 80, 1, 1}, []string{""}}
 	myNetwork, err := NewNeuralNetwork(numberOfNetworks, data.nodesPerLayer, data.outputLabels)
 	if err != nil {
 		t.Fatal(data, err)
@@ -88,8 +90,8 @@ func TestMultipleNetworks(t *testing.T) {
 ///////////////////////////////////////////////////////
 
 func TestCalculatingInputData(t *testing.T) {
-	structureData := testStructureData{[]int{3, 20, 50, 60, 80, 100, 500, 1000, 1, 1}, []string{""}}
-	myNetwork, err := NewNeuralNetwork(1, structureData.nodesPerLayer, structureData.outputLabels)
+	structureData := testStructureData{[]int{3, 20, 50, 60, 1, 1}, []string{""}}
+	myNetwork, err := NewNeuralNetwork(10, structureData.nodesPerLayer, structureData.outputLabels)
 	if err != nil {
 		t.Fatal(structureData, err)
 	}
