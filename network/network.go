@@ -66,28 +66,55 @@ func (net *Network) GetOutputValuesSlice() (output []float64) {
 }
 
 // returns weight and bias of requested node
-func (net *Network) GetNodeState(layerIndex, nodeIndex, weightIndex int) (weight, bias float64, err error) {
+func (net *Network) GetNodeBias(layerIndex, nodeIndex int) (bias float64, err error) {
 	layers, nodesPerLayer := net.NetworkStructure()
 	if layerIndex < 0 || layerIndex >= layers {
-		return 0, 0, errors.New("layer index out of range")
+		return 0, errors.New("layer index out of range")
 	}
 	if nodeIndex < 0 || nodeIndex >= nodesPerLayer[layerIndex] {
-		return 0, 0, errors.New("node index out of range")
-	}
-	// exludes last layer because it doesn't have any child nodes
-	if !(layerIndex == len(nodesPerLayer)-1) {
-		if weightIndex < 0 || weightIndex >= nodesPerLayer[layerIndex+1] {
-			return 0, 0, errors.New("weight index out of range")
-		}
-		weight = net.layers[layerIndex].nodes[nodeIndex].weights[weightIndex]
+		return 0, errors.New("node index out of range")
 	}
 
 	bias = net.layers[layerIndex].nodes[nodeIndex].bias
-	return weight, bias, nil
+	return bias, nil
 }
 
-// sets weight and bias of requested node if arguments are correct
-func (net *Network) SetNodeState(layerIndex, nodeIndex, weightIndex int, newWeight, newBias float64) (err error) {
+// returns weight of requested node
+func (net *Network) GetNodeWeight(layerIndex, nodeIndex, weightIndex int) (weight float64, err error) {
+	layers, nodesPerLayer := net.NetworkStructure()
+	if layerIndex < 0 || layerIndex >= layers {
+		return 0, errors.New("layer index out of range")
+	}
+	if nodeIndex < 0 || nodeIndex >= nodesPerLayer[layerIndex] {
+		return 0, errors.New("node index out of range")
+	}
+	// exludes last layer because it doesn't have any child nodes
+	if layerIndex == len(nodesPerLayer)-1 {
+		return 0, errors.New("there are no weights in output layer")
+	}
+	if weightIndex < 0 || weightIndex >= nodesPerLayer[layerIndex+1] {
+		return 0, errors.New("weight index out of range")
+	}
+
+	weight = net.layers[layerIndex].nodes[nodeIndex].weights[weightIndex]
+	return weight, nil
+}
+
+// sets bias of requested node if arguments are correct
+func (net *Network) SetNodeBias(layerIndex, nodeIndex int, newBias float64) (err error) {
+	layers, nodesPerLayer := net.NetworkStructure()
+	if layerIndex < 0 || layerIndex >= layers {
+		return errors.New("layer index out of range")
+	}
+	if nodeIndex < 0 || nodeIndex >= nodesPerLayer[layerIndex] {
+		return errors.New("node index out of range")
+	}
+
+	net.layers[layerIndex].nodes[nodeIndex].bias = newBias
+	return nil
+}
+
+func (net *Network) SetNodeWeight(layerIndex, nodeIndex, weightIndex int, newWeight float64) (err error) {
 	layers, nodesPerLayer := net.NetworkStructure()
 	if layerIndex < 0 || layerIndex >= layers {
 		return errors.New("layer index out of range")
@@ -96,13 +123,40 @@ func (net *Network) SetNodeState(layerIndex, nodeIndex, weightIndex int, newWeig
 		return errors.New("node index out of range")
 	}
 	// exludes last layer because it doesn't have any child nodes
-	if !(layerIndex == len(nodesPerLayer)-1) {
-		if weightIndex < 0 || weightIndex >= nodesPerLayer[layerIndex+1] {
-			return errors.New("weight index out of range")
-		}
-		net.layers[layerIndex].nodes[nodeIndex].weights[weightIndex] = newWeight
+	if layerIndex == len(nodesPerLayer)-1 {
+		return errors.New("there are no weights in output layer")
+	}
+	if weightIndex < 0 || weightIndex >= nodesPerLayer[layerIndex+1] {
+		return errors.New("weight index out of range")
 	}
 
-	net.layers[layerIndex].nodes[nodeIndex].bias = newBias
+	net.layers[layerIndex].nodes[nodeIndex].weights[weightIndex] = newWeight
 	return nil
+}
+
+// returns a network with the same structure, wieghts and biases
+func (net *Network) CopyNetwork() (copy Network, err error) {
+	layers, nodesPerLayer := net.NetworkStructure()
+	copy.InitializeNetwork(nodesPerLayer)
+	// iterating over all layers
+	for i := 0; i < layers; i++ {
+		// iterating over all nodes in a layer
+		for j := 0; j < nodesPerLayer[i]; i++ {
+			bias, err := net.GetNodeBias(i, j)
+			if err != nil {
+				return copy, err
+			}
+			copy.SetNodeBias(i, j, bias)
+
+			// iteratig over all weights
+			for k := 0; k < nodesPerLayer[i+1] && i != layers-1; k++ {
+				weight, err := net.GetNodeWeight(i, j, k)
+				if err != nil {
+					return copy, err
+				}
+				copy.SetNodeWeight(i, j, k, weight)
+			}
+		}
+	}
+	return copy, nil
 }

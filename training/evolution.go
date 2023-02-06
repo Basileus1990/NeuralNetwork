@@ -20,12 +20,27 @@ func (trainer *Trainer) evolutionTraining() {
 // it takes mostly the best ones but has some change for selecting worse ones instead of the best
 func (trainer *Trainer) selectNetworksToSurvive() []int {
 	numberToSurvive := int(float64(len(trainer.networksAndCosts)) * selectionHarshness)
-	//survivors := make([]int, len(trainer.networks)-numberToSurvive)
+	var survivors []int
+	sortedNetworks := trainer.getSortedNetworks()
 
-	deadOnes := make([]int, rand.Intn(numberToSurvive))
+	deadOnes := make([]int, rand.Intn(len(trainer.networksAndCosts)))
 	for i := range deadOnes {
 		deadOnes[i] = rand.Intn(len(trainer.networksAndCosts))
 	}
 
-	return nil
+	for i := 0; i < len(sortedNetworks) && i < numberToSurvive; i++ {
+		isDead := false
+		for _, v := range deadOnes {
+			if v == i {
+				isDead = true
+				break
+			}
+		}
+		if isDead {
+			continue
+		}
+		survivors = append(survivors, i)
+	}
+
+	return survivors
 }
