@@ -123,10 +123,11 @@ func TestCalculatingCosts(t *testing.T) {
 		}
 
 		trainer.calculateAverageCosts()
-		for _, v := range trainer.costs {
-			if v <= 0 {
-				t.Fatal("calculated cost is incorect: ", v)
+		for _, v := range trainer.networksAndCosts {
+			if v.cost <= 0 {
+				t.Fatal("calculated cost is incorect: ", v.cost)
 			}
 		}
 	}
+	trainer.Train(1)
 }

@@ -11,6 +11,10 @@ import (
 	"github.com/Basileus1990/NeuralNetwork.git/network"
 )
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 // Contains all networks created to the task
 type neuralNetwork struct {
 	networks     []network.Network
@@ -28,9 +32,6 @@ each outputLabels string corresponds to one node from the starting from the top
 Retrun: an initialized networks ready to be given data and to be trained
 */
 func NewNeuralNetwork(numberOfTrainingNetworks int, nodesPerLayer []int, outputLabels []string) (*neuralNetwork, error) {
-	// A seed for a random initial network state
-	rand.Seed(time.Now().UnixNano())
-
 	if err := validateNetworkInitArguments(numberOfTrainingNetworks, nodesPerLayer, outputLabels); err != nil {
 		return nil, err
 	}

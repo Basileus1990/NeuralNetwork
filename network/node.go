@@ -5,6 +5,8 @@ import (
 	"math/rand"
 )
 
+const maxInitialRandomValue = 5
+
 type node struct {
 	value     float64
 	bias      float64
@@ -18,14 +20,14 @@ func (myNode *node) initializeNode(prevLayer *layer, nextLayer *layer, numberOfN
 	myNode.prevLayer = prevLayer
 	myNode.nextLayer = nextLayer
 
-	myNode.bias = float64(rand.Intn(20001))/10000 - 1
+	myNode.bias = float64(rand.Intn(maxInitialRandomValue*2+1)*1000)/1000 - maxInitialRandomValue
 
 	if nextLayer == nil {
 		return
 	}
 	myNode.weights = make([]float64, numberOfNextNodes)
 	for i := range myNode.weights {
-		myNode.weights[i] = float64(rand.Intn(20001))/10000 - 1
+		myNode.weights[i] = float64(rand.Intn(maxInitialRandomValue*2+1)*1000)/1000 - maxInitialRandomValue
 	}
 }
 

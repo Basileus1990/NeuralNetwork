@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"runtime"
+	"sort"
 	"sync"
 
 	"github.com/Basileus1990/NeuralNetwork.git/network"
@@ -15,11 +16,15 @@ const evolutionTraining = true
 const backPropagationTraining = false
 
 type Trainer struct {
-	networks     []*network.Network
-	costs        map[*network.Network]float64
-	outputLabels []string
-	dataSets     []dataSet
-	locker       sync.Mutex
+	networksAndCosts []netWithCost
+	outputLabels     []string
+	dataSets         []dataSet
+	locker           sync.Mutex
+}
+
+type netWithCost struct {
+	network *network.Network
+	cost    float64
 }
 
 type dataSet struct {
@@ -35,10 +40,9 @@ func NewTrainer(networks *[]network.Network, outputLabels []string) (*Trainer, e
 
 	trainer := new(Trainer)
 	for _, v := range *networks {
-		trainer.networks = append(trainer.networks, &v)
+		trainer.networksAndCosts = append(trainer.networksAndCosts, netWithCost{&v, 0})
 	}
 	trainer.outputLabels = outputLabels
-	trainer.costs = make(map[*network.Network]float64)
 
 	return trainer, nil
 }
@@ -53,7 +57,8 @@ func (trainer *Trainer) Train(iterations int) error {
 	}
 
 	for i := 0; i < iterations; i++ {
-		if evolutionTraining {
+		// with single network evolution training doesn't make sense
+		if evolutionTraining && len(trainer.networksAndCosts) > 1 {
 			trainer.evolutionTraining()
 		}
 		// TODO: add back propagation support
@@ -114,38 +119,36 @@ func (trainer *Trainer) getDataSet(index int) (*[]float64, int, error) {
 // and add them to trainer's costs map
 func (trainer *Trainer) calculateAverageCosts() {
 	numberOfWorkers := runtime.NumCPU()
-	netChan := make(chan *network.Network)
+	netChan := make(chan *netWithCost)
 	var wg sync.WaitGroup
-	wg.Add(len(trainer.networks))
+	wg.Add(len(trainer.networksAndCosts))
 	for i := 0; i < numberOfWorkers; i++ {
-		go func(wg *sync.WaitGroup, netChan chan *network.Network) {
+		go func(wg *sync.WaitGroup, netChan chan *netWithCost) {
 			for net := range netChan {
 				trainer.averageCost(wg, net)
 			}
 		}(&wg, netChan)
 	}
-	for _, net := range trainer.networks {
-		netChan <- net
+	for i := range trainer.networksAndCosts {
+		netChan <- &trainer.networksAndCosts[i]
 	}
 	close(netChan)
-
 	wg.Wait()
-
 }
 
 // calculates average cost of a single network and ads it to trainer.costs map
-func (trainer *Trainer) averageCost(wg *sync.WaitGroup, net *network.Network) {
+func (trainer *Trainer) averageCost(wg *sync.WaitGroup, netAndCost *netWithCost) {
 	defer wg.Done()
 
 	inputData, expectedOutIndex, err := trainer.getDataSet(0)
 	i := 1
 	cost := 0.0
 	for ; err == nil; i++ {
-		net.CalculateOutput(nil, *inputData)
-		outputs := net.GetOutputValuesSlice()
+		netAndCost.network.CalculateOutput(nil, *inputData)
+		outputs := netAndCost.network.GetOutputValuesSlice()
 		for j, v := range outputs {
 			if j == expectedOutIndex {
-				cost -= math.Pow(v, 2)
+				cost += math.Pow(1-v, 2) //FIXME:
 			} else {
 				cost += math.Pow(v, 2)
 			}
@@ -155,8 +158,24 @@ func (trainer *Trainer) averageCost(wg *sync.WaitGroup, net *network.Network) {
 	}
 
 	trainer.locker.Lock()
-	trainer.costs[net] = cost / float64(i)
+	netAndCost.cost = cost / float64(i)
 	trainer.locker.Unlock()
+}
+
+// returns networks [0] <-- the best [n] <-- worse
+func (trainer *Trainer) getSortedNetworks() []*network.Network {
+	m := make(map[float64]*network.Network)
+	sortValues := make([]float64, 0, len(trainer.networksAndCosts))
+	sortedNetworks := make([]*network.Network, len(trainer.networksAndCosts))
+	for _, v := range trainer.networksAndCosts {
+		m[v.cost] = v.network
+		sortValues = append(sortValues, v.cost)
+	}
+	sort.Float64s(sortValues)
+	for i := range sortedNetworks {
+		sortedNetworks[i] = m[sortValues[i]]
+	}
+	return sortedNetworks
 }
 
 func (trainer *Trainer) validateTrainingInputData(inputs [][]float64, outputs []string) error {
@@ -164,7 +183,7 @@ func (trainer *Trainer) validateTrainingInputData(inputs [][]float64, outputs []
 		return errors.New("number of inputs slices is not the same as number of outputs")
 	}
 	for _, input := range inputs {
-		_, numberOfInputNodes := trainer.networks[0].NetworkStructure()
+		_, numberOfInputNodes := trainer.networksAndCosts[0].network.NetworkStructure()
 		if len(input) != numberOfInputNodes[0] {
 			return errors.New("number of input values is not the same as number of input nodes")
 		}
