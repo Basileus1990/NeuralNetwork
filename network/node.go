@@ -10,8 +10,8 @@ const maxInitialRandomValue = 5
 type node struct {
 	value     float64
 	bias      float64
-	prevLayer *layer
-	nextLayer *layer
+	prevLayer *layer    // for back propagation
+	nextLayer *layer    // for calculating the output
 	weights   []float64 // weights for the next nodes
 }
 
@@ -20,14 +20,14 @@ func (myNode *node) initializeNode(prevLayer *layer, nextLayer *layer, numberOfN
 	myNode.prevLayer = prevLayer
 	myNode.nextLayer = nextLayer
 
-	myNode.bias = float64(rand.Intn(maxInitialRandomValue*2+1)*1000)/1000 - maxInitialRandomValue
+	myNode.bias = rand.Float64()*maxInitialRandomValue*2 - maxInitialRandomValue
 
 	if nextLayer == nil {
 		return
 	}
 	myNode.weights = make([]float64, numberOfNextNodes)
 	for i := range myNode.weights {
-		myNode.weights[i] = float64(rand.Intn(maxInitialRandomValue*2+1)*1000)/1000 - maxInitialRandomValue
+		myNode.weights[i] = rand.Float64()*maxInitialRandomValue*2 - maxInitialRandomValue
 	}
 }
 
