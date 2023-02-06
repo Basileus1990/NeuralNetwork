@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"runtime"
 	"sync"
 	"time"
 
@@ -111,20 +112,24 @@ func (myNeuralNetwork *neuralNetwork) calculateOutputs(inputData []float64) erro
 		return err
 	}
 
-	const concurrentThershold = 5
-	if len(myNeuralNetwork.networks) > concurrentThershold {
-		var wg sync.WaitGroup
-		for i := range myNeuralNetwork.networks {
-			wg.Add(1)
-			go myNeuralNetwork.networks[i].CalculateOutput(&wg, inputData)
-		}
-
-		wg.Wait()
-	} else {
-		for i := range myNeuralNetwork.networks {
-			myNeuralNetwork.networks[i].CalculateOutput(nil, inputData)
-		}
+	numberOfWorkers := runtime.NumCPU()
+	netChan := make(chan *network.Network)
+	var wg sync.WaitGroup
+	wg.Add(len(myNeuralNetwork.networks))
+	for i := 0; i < numberOfWorkers; i++ {
+		go func(wg *sync.WaitGroup, netChan chan *network.Network) {
+			for net := range netChan {
+				net.CalculateOutput(wg, inputData)
+			}
+		}(&wg, netChan)
 	}
+	for _, net := range myNeuralNetwork.networks {
+		netChan <- &net
+	}
+	close(netChan)
+
+	wg.Wait()
+
 	return nil
 }
 
