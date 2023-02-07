@@ -13,7 +13,8 @@ import (
 // TODO:
 // Configuration (In the future from the json file)
 const evolutionTraining = true
-const backPropagationTraining = false
+
+// const backPropagationTraining = false
 
 type Trainer struct {
 	networksAndCosts []netWithCost
@@ -62,6 +63,9 @@ func (trainer *Trainer) Train(iterations int) error {
 			trainer.evolutionTraining()
 		}
 		// TODO: add back propagation support
+		// if backPropagationTraining {
+		// 	//w
+		// }
 	}
 	return nil
 }

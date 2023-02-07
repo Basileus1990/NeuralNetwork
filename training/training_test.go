@@ -1,19 +1,34 @@
 package training
 
 import (
+	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/Basileus1990/NeuralNetwork.git/network"
 )
+
+func createDummyNetworkTrainer() (*Trainer, error) {
+	// for testing purposes
+	rand.Seed(time.Now().UnixNano())
+
+	dummyNetwork := make([]network.Network, 50)
+	for i := range dummyNetwork {
+		dummyNetwork[i].InitializeNetwork([]int{3, 1, 10, 50, 1, 3})
+	}
+	trainer, err := NewTrainer(&dummyNetwork, []string{"1", "2", "welp"})
+	if err != nil {
+		return trainer, err
+	}
+	return trainer, nil
+}
 
 /////////////////////////////////////////////////////////////
 ////			   User Data Load Tests					 ////
 /////////////////////////////////////////////////////////////
 
 func TestDataSetsLoad(t *testing.T) {
-	dummyNetwork := new(network.Network)
-	dummyNetwork.InitializeNetwork([]int{3, 1, 1, 1})
-	trainer, err := NewTrainer(&[]network.Network{*dummyNetwork}, []string{"welp"})
+	trainer, err := createDummyNetworkTrainer()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,9 +69,7 @@ func TestDataSetsLoad(t *testing.T) {
 }
 
 func TestDataSingleAddition(t *testing.T) {
-	dummyNetwork := new(network.Network)
-	dummyNetwork.InitializeNetwork([]int{3, 1, 1, 1})
-	trainer, err := NewTrainer(&[]network.Network{*dummyNetwork}, []string{"welp"})
+	trainer, err := createDummyNetworkTrainer()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,11 +110,7 @@ func TestDataSingleAddition(t *testing.T) {
 /////////////////////////////////////////////////////////////
 
 func TestCalculatingCosts(t *testing.T) {
-	dummyNetwork := make([]network.Network, 50)
-	for i := range dummyNetwork {
-		dummyNetwork[i].InitializeNetwork([]int{3, 1, 10, 50, 1, 3})
-	}
-	trainer, err := NewTrainer(&dummyNetwork, []string{"1", "2", "3"})
+	trainer, err := createDummyNetworkTrainer()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +123,7 @@ func TestCalculatingCosts(t *testing.T) {
 	goodData := []data{
 		{[][]float64{{1, 0.5, 0.6}, {1, 0.5, 0.6}, {1, 0.5, 0.6}}, []string{"1", "2", "1"}},
 		{[][]float64{{1, 0.5, 0.6}}, []string{"2"}},
-		{[][]float64{{1, 0, 0.6}}, []string{"3"}},
+		{[][]float64{{1, 0, 0.6}}, []string{"1"}},
 	}
 	for _, myData := range goodData {
 		err := trainer.LoadTrainingData(myData.input, myData.expectedOutput)
@@ -129,5 +138,41 @@ func TestCalculatingCosts(t *testing.T) {
 			}
 		}
 	}
-	trainer.Train(1)
+}
+
+/////////////////////////////////////////////////////////////
+////			    	Evolution Tests				     ////
+/////////////////////////////////////////////////////////////
+
+func TestSelectingOnesToSurvive(t *testing.T) {
+	trainer, err := createDummyNetworkTrainer()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type data struct {
+		input          [][]float64
+		expectedOutput []string
+	}
+
+	goodData := []data{
+		{[][]float64{{1, 0.5, 0.6}, {1, 0.5, 0.6}, {1, 0.5, 0.6}}, []string{"1", "2", "1"}},
+		{[][]float64{{1, 0.5, 0.6}}, []string{"2"}},
+		{[][]float64{{1, 0, 0.6}}, []string{"1"}},
+	}
+	for _, myData := range goodData {
+		err := trainer.LoadTrainingData(myData.input, myData.expectedOutput)
+		if err != nil {
+			t.Fatal(myData, err)
+		}
+
+		trainer.calculateAverageCosts()
+		net, err := trainer.selectNetworksToSurvive()
+		if err != nil {
+			t.Fatal(err, myData)
+		}
+		if len(net) != int(float64(len(trainer.networksAndCosts))*selectionHarshness) {
+			t.Fatal("number of survivors is incorrect: ", len(net))
+		}
+	}
 }

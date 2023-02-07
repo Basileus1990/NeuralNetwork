@@ -141,20 +141,26 @@ func (net *Network) CopyNetwork() (copy Network, err error) {
 	// iterating over all layers
 	for i := 0; i < layers; i++ {
 		// iterating over all nodes in a layer
-		for j := 0; j < nodesPerLayer[i]; i++ {
+		for j := 0; j < nodesPerLayer[i]; j++ {
 			bias, err := net.GetNodeBias(i, j)
 			if err != nil {
 				return copy, err
 			}
-			copy.SetNodeBias(i, j, bias)
+			err = copy.SetNodeBias(i, j, bias)
+			if err != nil {
+				return copy, err
+			}
 
 			// iteratig over all weights
-			for k := 0; k < nodesPerLayer[i+1] && i != layers-1; k++ {
+			for k := 0; i != layers-1 && k < nodesPerLayer[i+1]; k++ {
 				weight, err := net.GetNodeWeight(i, j, k)
 				if err != nil {
 					return copy, err
 				}
-				copy.SetNodeWeight(i, j, k, weight)
+				err = copy.SetNodeWeight(i, j, k, weight)
+				if err != nil {
+					return copy, err
+				}
 			}
 		}
 	}
