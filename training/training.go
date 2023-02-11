@@ -60,7 +60,10 @@ func (trainer *Trainer) Train(iterations int) error {
 	for i := 0; i < iterations; i++ {
 		// with single network evolution training doesn't make sense
 		if evolutionTraining && len(trainer.networksAndCosts) > 1 {
-			trainer.evolutionTraining()
+			err := trainer.evolutionTraining()
+			if err != nil {
+				return err
+			}
 		}
 		// TODO: add back propagation support
 		// if backPropagationTraining {
@@ -133,6 +136,7 @@ func (trainer *Trainer) calculateAverageCosts() {
 			}
 		}(&wg, netChan)
 	}
+
 	for i := range trainer.networksAndCosts {
 		netChan <- &trainer.networksAndCosts[i]
 	}

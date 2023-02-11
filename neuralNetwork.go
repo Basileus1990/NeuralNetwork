@@ -97,11 +97,13 @@ func (myNeuralNetwork *neuralNetwork) GetBestOutput(inputData []float64) (string
 	return "", 0
 }
 
+// returns amount of networks's input nodes
 func (myNeuralNetwork *neuralNetwork) GetLenOfInNodes() int {
 	_, nodes := myNeuralNetwork.networks[0].NetworkStructure()
 	return nodes[0]
 }
 
+// returns amount of networks's output nodes
 func (myNeuralNetwork *neuralNetwork) GetLenOfOutNodes() int {
 	numberOfLayers, nodes := myNeuralNetwork.networks[0].NetworkStructure()
 	return nodes[numberOfLayers-1]

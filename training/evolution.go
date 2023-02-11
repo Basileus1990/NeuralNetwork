@@ -9,10 +9,10 @@ import (
 )
 
 // a number determining the range of random mutations
-const strengthOfEvolution = 1.0
+const strengthOfEvolution = 0.1
 
-// determines what weight will the network get -> every next gets multiplied by this (0,1)
-const maxNetworksSurvivorsWeight = 0.9
+// determines what weight will the network get -> every next gets multiplied by this number (0,1)
+const maxNetworksSurvivorsWeight = 0.8
 
 // a percentage of how much of a generation survives (0,1)
 const selectionHarshness = 0.5
@@ -23,7 +23,10 @@ func (trainer *Trainer) evolutionTraining() error {
 	if err != nil {
 		return err
 	}
-	trainer.createNewGeneration(survivors)
+	err = trainer.createNewGeneration(survivors)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -66,7 +69,7 @@ func (trainer *Trainer) selectNetworksToSurvive() (survivors []network.Network, 
 // mates randomly but lowest cost networks have an advantage
 func (trainer *Trainer) createNewGeneration(survivors []network.Network) error {
 	maxSurvivorWeight := getMaxSurvivorWeight(len(survivors))
-	for _, netAndCost := range trainer.networksAndCosts {
+	for i := range trainer.networksAndCosts {
 		// loops until it finds two diffrent survivors
 		firstNetIndex, err := getRandomSurvivorIndex(len(survivors), maxSurvivorWeight)
 		secondNetIndex := -1
@@ -82,7 +85,7 @@ func (trainer *Trainer) createNewGeneration(survivors []network.Network) error {
 				break
 			}
 		}
-		createChildFromSurvivors(netAndCost.network, survivors[firstNetIndex], survivors[secondNetIndex])
+		createChildFromSurvivors(trainer.networksAndCosts[i].network, survivors[firstNetIndex], survivors[secondNetIndex])
 	}
 	return nil
 }
@@ -100,16 +103,17 @@ func getRandomSurvivorIndex(numberOfSurvivors int, maxSurvivorWeight float64) (r
 	return 0, errors.New("random survivor -> run out of survivors")
 }
 
-// TODO: Comment this
+// sets weights and biases of the given network with the values of parents
+// the value taken from parents is taken from them  in ratio50/50
 func createChildFromSurvivors(net *network.Network, firstParent network.Network, secondParent network.Network) error {
 	numberOfLayers, nodesPerLayer := net.NetworkStructure()
 	// iterating over layers
 	for i := 0; i < numberOfLayers; i++ {
 		// iterating over all nodes in a layer
 		for j := 0; j < nodesPerLayer[i]; j++ {
-			setNode(net, firstParent, secondParent, i, j)
+			setBias(net, firstParent, secondParent, i, j)
 
-			// iteratig over all weights
+			// iteratig over all node's weights
 			for k := 0; i != numberOfLayers-1 && k < nodesPerLayer[i+1]; k++ {
 				setWeight(net, firstParent, secondParent, i, j, k)
 			}
@@ -118,7 +122,8 @@ func createChildFromSurvivors(net *network.Network, firstParent network.Network,
 	return nil
 }
 
-func setNode(net *network.Network, firstParent network.Network, secondParent network.Network, i, j int) error {
+// sets the given network's bias with randomly(50/50) selected parent's bias
+func setBias(net *network.Network, firstParent network.Network, secondParent network.Network, i, j int) error {
 	var newBias float64
 	var err error
 	if rand.Intn(2) == 0 {
@@ -129,7 +134,8 @@ func setNode(net *network.Network, firstParent network.Network, secondParent net
 	if err != nil {
 		return err
 	}
-	newBias += rand.Float64() * strengthOfEvolution
+	randomMutation := (rand.Float64() - 0.5) * 2 * strengthOfEvolution
+	newBias += randomMutation
 
 	err = net.SetNodeBias(i, j, newBias)
 	if err != nil {
@@ -139,6 +145,7 @@ func setNode(net *network.Network, firstParent network.Network, secondParent net
 	return nil
 }
 
+// sets the given network's weight with randomly(50/50) selected parent's weight
 func setWeight(net *network.Network, firstParent network.Network, secondParent network.Network, i, j, k int) error {
 	var newWeight float64
 	var err error
@@ -150,7 +157,8 @@ func setWeight(net *network.Network, firstParent network.Network, secondParent n
 	if err != nil {
 		return err
 	}
-	newWeight += rand.Float64() * strengthOfEvolution
+	randomMutation := (rand.Float64() - 0.5) * 2 * strengthOfEvolution
+	newWeight += randomMutation
 
 	err = net.SetNodeWeight(i, j, k, newWeight)
 	if err != nil {
@@ -160,6 +168,7 @@ func setWeight(net *network.Network, firstParent network.Network, secondParent n
 	return nil
 }
 
+// returns the maximal weight for a survivor for the amount of the survivors
 func getMaxSurvivorWeight(amountOfSurvivors int) (maxSurvivorWeight float64) {
 	for i := 0; i < amountOfSurvivors; i++ {
 		maxSurvivorWeight += math.Pow(maxNetworksSurvivorsWeight, float64(i))

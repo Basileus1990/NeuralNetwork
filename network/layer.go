@@ -15,6 +15,9 @@ func (myLayer *layer) calculateNextLayer() {
 	for i := range myLayer.nodes {
 		myLayer.nodes[i].calculateNextNodes()
 	}
+	for i := range myLayer.nodes {
+		myLayer.nodes[i].addBias()
+	}
 }
 
 // uses on all nodes the sigmoid funcion

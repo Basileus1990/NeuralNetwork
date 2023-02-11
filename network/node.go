@@ -5,7 +5,7 @@ import (
 	"math/rand"
 )
 
-const maxInitialRandomValue = 5
+const maxInitialRandomValue = 1
 
 type node struct {
 	value     float64
@@ -20,24 +20,28 @@ func (myNode *node) initializeNode(prevLayer *layer, nextLayer *layer, numberOfN
 	myNode.prevLayer = prevLayer
 	myNode.nextLayer = nextLayer
 
-	myNode.bias = rand.Float64()*maxInitialRandomValue*2 - maxInitialRandomValue
+	myNode.bias = (rand.Float64() - 0.5) * 2 * maxInitialRandomValue
 
 	if nextLayer == nil {
 		return
 	}
 	myNode.weights = make([]float64, numberOfNextNodes)
 	for i := range myNode.weights {
-		myNode.weights[i] = rand.Float64()*maxInitialRandomValue*2 - maxInitialRandomValue
+		myNode.weights[i] = (rand.Float64() - 0.5) * 2 * maxInitialRandomValue
 	}
 }
 
 func (myNode *node) calculateNextNodes() {
 	for i := range myNode.nextLayer.nodes {
-		addedValue := myNode.value*myNode.weights[i] + myNode.bias
+		addedValue := myNode.value * myNode.weights[i]
 		myNode.nextLayer.nodes[i].value += addedValue
 	}
 }
 
+func (myNode *node) addBias() {
+	myNode.value += myNode.bias
+}
+
 func (myNode *node) sigmoidize() {
-	myNode.value = 1.0 / (1 + math.Exp(myNode.value))
+	myNode.value = 1.0 / (1 + math.Exp(-myNode.value))
 }
