@@ -51,9 +51,10 @@ $This is a neural network using back propagation and evolution algorithm.
     * [X] Calculate and return map of outputs or best outputs
     * [X] Refactor network structure
     * [ ] Add some test to directly test single network
-    * [ ] Comment the code for it to be more understandable
+    * [X] Comment the code for it to be more understandable
     * [ ] Training
         * [X] Calculating the cost
+        * [ ] Merge training package into neuralNetwork package -> get rid of data duplication
         * [ ] Evolution algorithm
         * [ ] Back propagation algorithm
     * [ ] Algorithms and neuralNetwork can be configured from a JSON file

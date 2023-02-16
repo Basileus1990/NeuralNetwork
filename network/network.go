@@ -1,7 +1,6 @@
 package network
 
 import (
-	"errors"
 	"sync"
 )
 
@@ -67,12 +66,8 @@ func (net *Network) GetOutputValuesSlice() (output []float64) {
 
 // returns weight and bias of requested node
 func (net *Network) GetNodeBias(layerIndex, nodeIndex int) (bias float64, err error) {
-	layers, nodesPerLayer := net.NetworkStructure()
-	if layerIndex < 0 || layerIndex >= layers {
-		return 0, errors.New("layer index out of range")
-	}
-	if nodeIndex < 0 || nodeIndex >= nodesPerLayer[layerIndex] {
-		return 0, errors.New("node index out of range")
+	if err := net.validateBiasIndex(layerIndex, nodeIndex); err != nil {
+		return 0, err
 	}
 
 	bias = net.layers[layerIndex].nodes[nodeIndex].bias
@@ -81,19 +76,8 @@ func (net *Network) GetNodeBias(layerIndex, nodeIndex int) (bias float64, err er
 
 // returns weight of requested node
 func (net *Network) GetNodeWeight(layerIndex, nodeIndex, weightIndex int) (weight float64, err error) {
-	layers, nodesPerLayer := net.NetworkStructure()
-	if layerIndex < 0 || layerIndex >= layers {
-		return 0, errors.New("layer index out of range")
-	}
-	if nodeIndex < 0 || nodeIndex >= nodesPerLayer[layerIndex] {
-		return 0, errors.New("node index out of range")
-	}
-	// exludes last layer because it doesn't have any child nodes
-	if layerIndex == len(nodesPerLayer)-1 {
-		return 0, errors.New("there are no weights in output layer")
-	}
-	if weightIndex < 0 || weightIndex >= nodesPerLayer[layerIndex+1] {
-		return 0, errors.New("weight index out of range")
+	if err := net.validateWeightIndex(layerIndex, nodeIndex, weightIndex); err != nil {
+		return 0, err
 	}
 
 	weight = net.layers[layerIndex].nodes[nodeIndex].weights[weightIndex]
@@ -102,12 +86,8 @@ func (net *Network) GetNodeWeight(layerIndex, nodeIndex, weightIndex int) (weigh
 
 // sets bias of requested node if arguments are correct
 func (net *Network) SetNodeBias(layerIndex, nodeIndex int, newBias float64) (err error) {
-	layers, nodesPerLayer := net.NetworkStructure()
-	if layerIndex < 0 || layerIndex >= layers {
-		return errors.New("layer index out of range")
-	}
-	if nodeIndex < 0 || nodeIndex >= nodesPerLayer[layerIndex] {
-		return errors.New("node index out of range")
+	if err := net.validateBiasIndex(layerIndex, nodeIndex); err != nil {
+		return err
 	}
 
 	net.layers[layerIndex].nodes[nodeIndex].bias = newBias
@@ -115,19 +95,8 @@ func (net *Network) SetNodeBias(layerIndex, nodeIndex int, newBias float64) (err
 }
 
 func (net *Network) SetNodeWeight(layerIndex, nodeIndex, weightIndex int, newWeight float64) (err error) {
-	layers, nodesPerLayer := net.NetworkStructure()
-	if layerIndex < 0 || layerIndex >= layers {
-		return errors.New("layer index out of range")
-	}
-	if nodeIndex < 0 || nodeIndex >= nodesPerLayer[layerIndex] {
-		return errors.New("node index out of range")
-	}
-	// exludes last layer because it doesn't have any child nodes
-	if layerIndex == len(nodesPerLayer)-1 {
-		return errors.New("there are no weights in output layer")
-	}
-	if weightIndex < 0 || weightIndex >= nodesPerLayer[layerIndex+1] {
-		return errors.New("weight index out of range")
+	if err := net.validateWeightIndex(layerIndex, nodeIndex, weightIndex); err != nil {
+		return err
 	}
 
 	net.layers[layerIndex].nodes[nodeIndex].weights[weightIndex] = newWeight

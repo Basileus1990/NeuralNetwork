@@ -31,6 +31,15 @@ func (myNode *node) initializeNode(prevLayer *layer, nextLayer *layer, numberOfN
 	}
 }
 
+// Initializes the node and makes it ready to be given new values
+func (myNode *node) initializeEmptyNode(prevLayer *layer, nextLayer *layer, numberOfNextNodes int) {
+	myNode.prevLayer = prevLayer
+	myNode.nextLayer = nextLayer
+	myNode.bias = 0
+	myNode.weights = make([]float64, numberOfNextNodes)
+}
+
+// iterates over all next layer's nodes and adds to their value this value multiplied by weight
 func (myNode *node) calculateNextNodes() {
 	for i := range myNode.nextLayer.nodes {
 		addedValue := myNode.value * myNode.weights[i]
@@ -38,10 +47,12 @@ func (myNode *node) calculateNextNodes() {
 	}
 }
 
+// adds to the node's value its bias
 func (myNode *node) addBias() {
 	myNode.value += myNode.bias
 }
 
+// sigmoidizes the node's value
 func (myNode *node) sigmoidize() {
 	myNode.value = 1.0 / (1 + math.Exp(-myNode.value))
 }

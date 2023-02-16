@@ -1,7 +1,6 @@
 package NeuralNetwork
 
 import (
-	"errors"
 	"fmt"
 	"math/rand"
 	"runtime"
@@ -11,6 +10,7 @@ import (
 	"github.com/Basileus1990/NeuralNetwork.git/network"
 )
 
+// for random generation of mutations and random initialization
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
@@ -21,18 +21,12 @@ type neuralNetwork struct {
 	outputLabels []string
 }
 
-/*
-parameters:
--> numberOfTrainingNetworks >= 1
--> nodesPerLayer[i] > 0
--> len(nodesPerLayer) > 0
--> len(outputLabels) == len(nodesPerLayer[output])
-each outputLabels string corresponds to one node from the starting from the top
-
-Retrun: an initialized networks ready to be given data and to be trained
-*/
+// Retruns an initialized neural network ready to be given data and to be trained.
+// Number of training networks has to be bigger than 0.
+// Amount of layers and nodes has to bigger than 0.
+// amount of output labels has to be equal to number of output nodes
 func NewNeuralNetwork(numberOfTrainingNetworks int, nodesPerLayer []int, outputLabels []string) (*neuralNetwork, error) {
-	if err := validateNetworkInitArguments(numberOfTrainingNetworks, nodesPerLayer, outputLabels); err != nil {
+	if err := validateNetworkInit(numberOfTrainingNetworks, nodesPerLayer, outputLabels); err != nil {
 		return nil, err
 	}
 
@@ -58,16 +52,8 @@ func (myNeuralNetwork *neuralNetwork) PrintNetworkSchema() {
 	fmt.Println("<========================>")
 }
 
-/*
-Parameters:
--> inputData: len(inputData) == GetLenOfInNodes()
-0 <= inputData[i] <= 1
--> outputLabels: len(outputLabes) == GetLenOfOutNodes()
-each outputLabels string corresponds to one node from the starting from the top
-
-Returns:
--> A map containing all output layer's node values with the key given by the user
-*/
+// Returns the best a map where output label are keys and outputs are values for given input data.
+// Inputs have to be between 0 and 1
 // TODO:
 func (myNeuralNetwork *neuralNetwork) GetOutputMap(inputData []float64) (map[string]float64, error) {
 	err := myNeuralNetwork.calculateOutputs(inputData)
@@ -82,33 +68,25 @@ func (myNeuralNetwork *neuralNetwork) GetOutputMap(inputData []float64) (map[str
 	return resultMap, nil
 }
 
-/*
-Parameters:
--> inputData: len(inputData) == GetLenOfInNodes()
-0 <= inputData[] <= 1
--> outputLabels: len(outputLabes) == GetLenOfOutNodes()
-each outputLabels string corresponds to one node from the starting from the top
-
-Returns:
--> The best output node value and it's key
-*/
+// Returns the best output label for given input data. Inputs have to be between 0 and 1
 // TODO:
-func (myNeuralNetwork *neuralNetwork) GetBestOutput(inputData []float64) (string, float64) {
-	return "", 0
+func (myNeuralNetwork *neuralNetwork) GetNetworkResult(inputData []float64) string {
+	return ""
 }
 
-// returns amount of networks's input nodes
+// returns the amount of network's input nodes
 func (myNeuralNetwork *neuralNetwork) GetLenOfInNodes() int {
 	_, nodes := myNeuralNetwork.networks[0].NetworkStructure()
 	return nodes[0]
 }
 
-// returns amount of networks's output nodes
+// returns the amount of network's output nodes
 func (myNeuralNetwork *neuralNetwork) GetLenOfOutNodes() int {
 	numberOfLayers, nodes := myNeuralNetwork.networks[0].NetworkStructure()
 	return nodes[numberOfLayers-1]
 }
 
+// calculates all networks' outputs concurrently. After this networks will have ready to be extracted outputs
 func (myNeuralNetwork *neuralNetwork) calculateOutputs(inputData []float64) error {
 	err := myNeuralNetwork.validateInputData(inputData)
 	if err != nil {
@@ -132,37 +110,6 @@ func (myNeuralNetwork *neuralNetwork) calculateOutputs(inputData []float64) erro
 	close(netChan)
 
 	wg.Wait()
-
-	return nil
-}
-
-func (myNeuralNetwork *neuralNetwork) validateInputData(inputData []float64) error {
-	if len(inputData) != myNeuralNetwork.GetLenOfInNodes() {
-		return errors.New("number of input data has to be the same as number of input nodes")
-	}
-	for _, v := range inputData {
-		if v < 0 || v > 1 {
-			return errors.New("network input has to be beetween [0,1]")
-		}
-	}
-	return nil
-}
-
-func validateNetworkInitArguments(numberOfTrainingNetworks int, nodesPerLayer []int, outputLabels []string) error {
-	if numberOfTrainingNetworks <= 0 {
-		return errors.New("number of training networks has to bigger than 0")
-	}
-	if len(nodesPerLayer) <= 0 {
-		return errors.New("number of layers has to be bigger than 0")
-	}
-	for _, v := range nodesPerLayer {
-		if v <= 0 {
-			return errors.New("number of nodes per layer can't be lower than 1")
-		}
-	}
-	if len(outputLabels) != nodesPerLayer[len(nodesPerLayer)-1] {
-		return errors.New("number of output labes has to be the same as number of output nodes")
-	}
 
 	return nil
 }
