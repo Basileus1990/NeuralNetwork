@@ -5,7 +5,7 @@ import (
 	"math"
 	"math/rand"
 
-	"github.com/Basileus1990/NeuralNetwork.git/network"
+	"github.com/Basileus1990/NeuralNetwork.git/integral/network"
 )
 
 // a number determining the range of random mutations

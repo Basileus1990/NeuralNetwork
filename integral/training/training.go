@@ -7,7 +7,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/Basileus1990/NeuralNetwork.git/network"
+	"github.com/Basileus1990/NeuralNetwork.git/integral/network"
 )
 
 // TODO:
@@ -99,8 +99,8 @@ func (trainer *Trainer) AddSingleTrainingData(input []float64, output string) er
 }
 
 // a thread safe way to get data sets
-// returns a pointer to a copy of a single data set input slice and an index of expectedOutput
-func (trainer *Trainer) getDataSet(index int) (*[]float64, int, error) {
+// returns a copy of a single data set input slice and an index of expectedOutput
+func (trainer *Trainer) getDataSet(index int) ([]float64, int, error) {
 	trainer.locker.Lock()
 	defer trainer.locker.Unlock()
 
@@ -119,7 +119,7 @@ func (trainer *Trainer) getDataSet(index int) (*[]float64, int, error) {
 	inputCopy := make([]float64, len(trainer.dataSets[index].input))
 	copy(inputCopy, trainer.dataSets[index].input)
 
-	return &inputCopy, expectedOutputIndex, nil
+	return inputCopy, expectedOutputIndex, nil
 }
 
 // calculate concurrently an average cost for every network for all training datasets
@@ -152,11 +152,11 @@ func (trainer *Trainer) averageCost(wg *sync.WaitGroup, netAndCost *netWithCost)
 	i := 1
 	cost := 0.0
 	for ; err == nil; i++ {
-		netAndCost.network.CalculateOutput(nil, *inputData)
+		netAndCost.network.CalculateOutput(nil, inputData)
 		outputs := netAndCost.network.GetOutputValuesSlice()
 		for j, v := range outputs {
 			if j == expectedOutIndex {
-				cost += math.Pow(1-v, 2) //FIXME:
+				cost += math.Pow(1-v, 2) //FIXME: make it usable for something other than simgoid
 			} else {
 				cost += math.Pow(v, 2)
 			}
@@ -184,49 +184,4 @@ func (trainer *Trainer) getSortedNetworks() []*network.Network {
 		sortedNetworks[i] = m[sortValues[i]]
 	}
 	return sortedNetworks
-}
-
-func (trainer *Trainer) validateTrainingInputData(inputs [][]float64, outputs []string) error {
-	if len(inputs) != len(outputs) {
-		return errors.New("number of inputs slices is not the same as number of outputs")
-	}
-	for _, input := range inputs {
-		_, numberOfInputNodes := trainer.networksAndCosts[0].network.NetworkStructure()
-		if len(input) != numberOfInputNodes[0] {
-			return errors.New("number of input values is not the same as number of input nodes")
-		}
-
-		for _, v := range input {
-			if v < 0 || v > 1 {
-				return errors.New("input values have to be between [0,1]")
-			}
-		}
-	}
-	// checks if user given expected outputs were exist in trainer.outputLabels
-	for _, inputOutput := range outputs {
-		exists := false
-		for _, v := range trainer.outputLabels {
-			if v == inputOutput {
-				exists = true
-				break
-			}
-		}
-		if !exists {
-			return errors.New("given output doesn't exist: " + inputOutput)
-		}
-	}
-
-	return nil
-}
-
-func validateInitializationData(networks *[]network.Network, outputLabels []string) error {
-	if networks == nil {
-		return errors.New("passed wrong networks pointer: nil")
-	}
-
-	numberOfLayers, numberOfInputNodes := (*networks)[0].NetworkStructure()
-	if numberOfInputNodes[numberOfLayers-1] != len(outputLabels) {
-		return errors.New("number of networks is not the same as number of outputs")
-	}
-	return nil
 }

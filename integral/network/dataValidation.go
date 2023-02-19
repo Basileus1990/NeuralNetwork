@@ -7,8 +7,8 @@ import "errors"
 ////////////////////////////////////////////////////////////////////////
 
 func (net *Network) validateBiasIndex(layerIndex, nodeIndex int) error {
-	layers, nodesPerLayer := net.NetworkStructure()
-	if layerIndex < 0 || layerIndex >= layers {
+	nodesPerLayer := net.GetNetworkStructure()
+	if layerIndex < 0 || layerIndex >= len(nodesPerLayer) {
 		return errors.New("layer index out of range")
 	}
 	if nodeIndex < 0 || nodeIndex >= nodesPerLayer[layerIndex] {
@@ -19,7 +19,7 @@ func (net *Network) validateBiasIndex(layerIndex, nodeIndex int) error {
 }
 
 func (net *Network) validateWeightIndex(layerIndex, nodeIndex, weightIndex int) error {
-	_, nodesPerLayer := net.NetworkStructure()
+	nodesPerLayer := net.GetNetworkStructure()
 	if err := net.validateBiasIndex(layerIndex, nodeIndex); err != nil {
 		return err
 	}
