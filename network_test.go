@@ -1,6 +1,7 @@
 package NeuralNetwork
 
 import (
+	"sync"
 	"testing"
 )
 
@@ -35,8 +36,8 @@ func TestGoodInputData(t *testing.T) {
 			t.Fatal(data, err)
 		}
 
-		numberOfLayers, nodesPerLayer := myNetwork.networks[0].NetworkStructure()
-		if numberOfLayers != len(data.nodesPerLayer) {
+		nodesPerLayer := myNetwork.network.GetNetworkStructure()
+		if len(nodesPerLayer) != len(data.nodesPerLayer) {
 			t.Fatal("Number of layers is wrong")
 		}
 		for i, nodes := range nodesPerLayer {
@@ -61,29 +62,6 @@ func TestBadInputData(t *testing.T) {
 		_, err := NewNeuralNetwork(numberOfNetworks, data.nodesPerLayer, data.outputLabels)
 		if err == nil {
 			t.Fatal("Bad data got through: ", data.nodesPerLayer)
-		}
-	}
-}
-
-// tests wheter all networks are created with the same structure
-func TestMultipleNetworks(t *testing.T) {
-	const numberOfNetworks = 100
-	data := testStructureData{[]int{10, 20, 50, 60, 80, 1, 1}, []string{""}}
-	myNetwork, err := NewNeuralNetwork(numberOfNetworks, data.nodesPerLayer, data.outputLabels)
-	if err != nil {
-		t.Fatal(data, err)
-	}
-
-	firstNumberOfLayers, firstNodesPerLayer := myNetwork.networks[0].NetworkStructure()
-	for i := 1; i < numberOfNetworks; i++ {
-		numberOfLayers, nodesPerLayer := myNetwork.networks[i].NetworkStructure()
-		if numberOfLayers != firstNumberOfLayers {
-			t.Fatal("the networks don't have the same number of layers. Data: ", data)
-		}
-		for j := 0; j < firstNumberOfLayers; j++ {
-			if nodesPerLayer[j] != firstNodesPerLayer[j] {
-				t.Fatal("the networks layers don't have the same number of nodes. Data: ", data)
-			}
 		}
 	}
 }
@@ -124,6 +102,151 @@ func TestCalculatingInputData(t *testing.T) {
 		_, err = myNetwork.GetOutputMap(data)
 		if err != nil {
 			t.Fatal(data, err)
+		}
+	}
+}
+
+func TestTheBestOutput(t *testing.T) {
+	structureData := testStructureData{[]int{3, 20, 50, 60, 1, 5}, []string{"", "", "", "", ""}}
+	myNetwork, err := NewNeuralNetwork(10, structureData.nodesPerLayer, structureData.outputLabels)
+	if err != nil {
+		t.Fatal(structureData, err)
+	}
+	var goodInputData = [][]float64{
+		{0.5, 0.6, 1},
+		{1.000000, 0.5, 0.6},
+		{0.000000000000, 0.5, 0.3},
+		{0, 0.6, 1},
+	}
+	for _, data := range goodInputData {
+		theMap, _ := myNetwork.GetOutputMap(data)
+		bestLabel, _ := myNetwork.GetNetworkResult(data)
+		for _, v := range theMap {
+			if v > theMap[bestLabel] {
+				t.Fatal("the best label is not the best", data)
+			}
+		}
+		newBestLabel, _ := myNetwork.GetNetworkResult(data)
+		if newBestLabel != bestLabel {
+			t.Fatal("calculating over the same data gives diffrent results", data)
+		}
+	}
+}
+
+/////////////////////////////////////////////////////////////
+////			   User Data Load Tests					 ////
+/////////////////////////////////////////////////////////////
+
+func TestDataSetsLoad(t *testing.T) {
+	structureData := testStructureData{[]int{3, 20, 50, 60, 1, 1}, []string{"welp"}}
+	myNetwork, err := NewNeuralNetwork(10, structureData.nodesPerLayer, structureData.outputLabels)
+	if err != nil {
+		t.Fatal(structureData, err)
+	}
+
+	type data struct {
+		input          [][]float64
+		expectedOutput []string
+	}
+
+	goodData := []data{
+		{[][]float64{{1, 0.5, 0.6}, {1, 0.5, 0.6}, {1, 0.5, 0.6}}, []string{"welp", "welp", "welp"}},
+		{[][]float64{{1, 0.5, 0.6}}, []string{"welp"}},
+		{[][]float64{{1, 0, 0.6}}, []string{"welp"}},
+	}
+	for _, myData := range goodData {
+		err := myNetwork.LoadTrainingData(myData.input, myData.expectedOutput)
+		if err != nil {
+			t.Fatal(myData, err)
+		}
+	}
+
+	badData := []data{
+		{[][]float64{{1, 5, 0.6}, {1, 0.5, 0.6}, {1, 0.5, 0.6}}, []string{"welp", "welp", "welp"}},
+		{[][]float64{{1, 1, 0.6}, {1, 0.5, 0.6}, {1, 0.5, 0.6}}, []string{"welp", "kiss", "welp"}},
+		{[][]float64{{1, 0.5, 0.6}, {1, 0.5, 0.6}, {1, 0.5, 0.6}}, []string{"welp", "welp"}},
+		{[][]float64{{1, 0.5, 0.6}}, []string{"welp", "welp"}},
+		{[][]float64{{1, -0.5, 0.6}}, []string{"welp"}},
+		{[][]float64{{1, 0.5, 0.6, 1}}, []string{"welp"}},
+		{[][]float64{{1, 0.5, 0.6, 1}}, []string{"wel"}},
+	}
+
+	for _, myData := range badData {
+		err := myNetwork.LoadTrainingData(myData.input, myData.expectedOutput)
+		if err == nil {
+			t.Fatal("bad data got through: ", myData)
+		}
+	}
+}
+
+func TestDataSingleAddition(t *testing.T) {
+	structureData := testStructureData{[]int{3, 20, 50, 60, 1, 1}, []string{"welp"}}
+	myNetwork, err := NewNeuralNetwork(10, structureData.nodesPerLayer, structureData.outputLabels)
+	if err != nil {
+		t.Fatal(structureData, err)
+	}
+
+	type data struct {
+		input          []float64
+		expectedOutput string
+	}
+
+	goodData := []data{
+		{[]float64{0.1, 0.3, 0.5}, "welp"},
+		{[]float64{0.1, 0, 0.5}, "welp"},
+		{[]float64{0.1, 1, 0.5}, "welp"},
+	}
+	for _, myData := range goodData {
+		err := myNetwork.AddSingleTrainingData(myData.input, myData.expectedOutput)
+		if err != nil {
+			t.Fatal(err, myData)
+		}
+	}
+
+	badData := []data{
+		{[]float64{0.1, 0, -0.5}, ""},
+		{[]float64{0.1, 5, 0.5}, "adsatrheragg"},
+		{[]float64{0.1, 0.6, 0.5, 1}, "welp"},
+		{[]float64{0.1, 0.6, 0.5}, "wlp"},
+	}
+	for _, myData := range badData {
+		err := myNetwork.AddSingleTrainingData(myData.input, myData.expectedOutput)
+		if err == nil {
+			t.Fatal("bad data got through: ", myData)
+		}
+	}
+}
+
+/////////////////////////////////////////////////////////////
+////			    Calculating Cost Tests			     ////
+/////////////////////////////////////////////////////////////
+
+func TestCalculatingCosts(t *testing.T) {
+	structureData := testStructureData{[]int{3, 20, 50, 60, 1, 3}, []string{"1", "2", "welp"}}
+	myNetwork, err := NewNeuralNetwork(10, structureData.nodesPerLayer, structureData.outputLabels)
+	if err != nil {
+		t.Fatal(structureData, err)
+	}
+
+	type data struct {
+		input          [][]float64
+		expectedOutput []string
+	}
+
+	goodData := []data{
+		{[][]float64{{1, 0.5, 0.6}, {1, 0.5, 0.6}, {1, 0.5, 0.6}}, []string{"1", "2", "1"}},
+		{[][]float64{{1, 0.5, 0.6}}, []string{"2"}},
+		{[][]float64{{1, 0, 0.6}}, []string{"1"}},
+	}
+	for _, myData := range goodData {
+		err := myNetwork.LoadTrainingData(myData.input, myData.expectedOutput)
+		if err != nil {
+			t.Fatal(myData, err)
+		}
+
+		myNetwork.network.CalculateCost(&sync.Mutex{}, myNetwork.trainingData)
+		if myNetwork.network.GetCost() < 0 {
+			t.Fatal("calculated cost is incorect: ", myNetwork.network.GetCost(), myData)
 		}
 	}
 }

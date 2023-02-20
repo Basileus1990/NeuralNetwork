@@ -2,8 +2,8 @@ package NeuralNetwork
 
 import "errors"
 
-func (myNeuralNetwork *neuralNetwork) validateInputData(inputData []float64) error {
-	if len(inputData) != myNeuralNetwork.GetLenOfInNodes() {
+func (neuralNet *neuralNetwork) validateInputData(inputData []float64) error {
+	if len(inputData) != neuralNet.NumberOfInputNodes() {
 		return errors.New("number of input data has to be the same as number of input nodes")
 	}
 	for _, v := range inputData {
@@ -11,6 +11,32 @@ func (myNeuralNetwork *neuralNetwork) validateInputData(inputData []float64) err
 			return errors.New("network input has to be beetween [0,1]")
 		}
 	}
+	return nil
+}
+
+func (neuralNet *neuralNetwork) validateTrainingInputData(inputs [][]float64, outputs []string) error {
+	if len(inputs) != len(outputs) {
+		return errors.New("number of inputs slices is not the same as number of outputs")
+	}
+	for _, input := range inputs {
+		if err := neuralNet.validateInputData(input); err != nil {
+			return err
+		}
+	}
+	// checks if user given expected outputs were exist in trainer.outputLabels
+	for _, output := range outputs {
+		exists := false
+		for _, v := range neuralNet.network.GetOutputLabels() {
+			if v == output {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			return errors.New("given output doesn't exist: " + output)
+		}
+	}
+
 	return nil
 }
 

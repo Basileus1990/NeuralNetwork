@@ -3,11 +3,10 @@ package NeuralNetwork
 import (
 	"fmt"
 	"math/rand"
-	"runtime"
-	"sync"
 	"time"
 
-	"github.com/Basileus1990/NeuralNetwork.git/network"
+	"github.com/Basileus1990/NeuralNetwork.git/integral/network"
+	"github.com/Basileus1990/NeuralNetwork.git/integral/training"
 )
 
 // for random generation of mutations and random initialization
@@ -15,10 +14,11 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-// Contains all networks created to the task
 type neuralNetwork struct {
-	networks     []network.Network
-	outputLabels []string
+	network                  network.Network
+	trainer                  training.Trainer
+	numberOfTrainingNetworks int
+	trainingData             network.DataSets
 }
 
 // Retruns an initialized neural network ready to be given data and to be trained.
@@ -31,18 +31,13 @@ func NewNeuralNetwork(numberOfTrainingNetworks int, nodesPerLayer []int, outputL
 	}
 
 	// initialize networks
-	var myNeuralNetwork neuralNetwork
-	myNeuralNetwork.networks = make([]network.Network, numberOfTrainingNetworks)
-	myNeuralNetwork.outputLabels = outputLabels
-	for i := range myNeuralNetwork.networks {
-		myNeuralNetwork.networks[i].InitializeNetwork(nodesPerLayer)
-	}
-	return &myNeuralNetwork, nil
+	var neuralNet neuralNetwork
+	neuralNet.network.InitializeNetwork(nodesPerLayer, outputLabels)
+	return &neuralNet, nil
 }
 
-// If network is not initialized then informs the user about it
-func (myNeuralNetwork *neuralNetwork) PrintNetworkSchema() {
-	_, nodesPerLayer := myNeuralNetwork.networks[0].NetworkStructure()
+func (neuralNet *neuralNetwork) PrintNetworkSchema() {
+	nodesPerLayer := neuralNet.network.GetNetworkStructure()
 
 	fmt.Println("<========================>")
 	fmt.Println(" A neural network schema:")
@@ -54,62 +49,60 @@ func (myNeuralNetwork *neuralNetwork) PrintNetworkSchema() {
 
 // Returns the best a map where output label are keys and outputs are values for given input data.
 // Inputs have to be between 0 and 1
-// TODO:
-func (myNeuralNetwork *neuralNetwork) GetOutputMap(inputData []float64) (map[string]float64, error) {
-	err := myNeuralNetwork.calculateOutputs(inputData)
+func (neuralNet *neuralNetwork) GetOutputMap(inputData []float64) (map[string]float64, error) {
+	err := neuralNet.validateInputData(inputData)
 	if err != nil {
 		return nil, err
 	}
-	resultMap := make(map[string]float64)
-	resultSlice := myNeuralNetwork.networks[0].GetOutputValuesSlice() // FIXME:
-	for i := range resultSlice {
-		resultMap[myNeuralNetwork.outputLabels[i]] = resultSlice[i]
-	}
-	return resultMap, nil
+
+	return neuralNet.network.GetOutputsMap(inputData), nil
 }
 
 // Returns the best output label for given input data. Inputs have to be between 0 and 1
-// TODO:
-func (myNeuralNetwork *neuralNetwork) GetNetworkResult(inputData []float64) string {
-	return ""
-}
-
-// returns the amount of network's input nodes
-func (myNeuralNetwork *neuralNetwork) GetLenOfInNodes() int {
-	_, nodes := myNeuralNetwork.networks[0].NetworkStructure()
-	return nodes[0]
-}
-
-// returns the amount of network's output nodes
-func (myNeuralNetwork *neuralNetwork) GetLenOfOutNodes() int {
-	numberOfLayers, nodes := myNeuralNetwork.networks[0].NetworkStructure()
-	return nodes[numberOfLayers-1]
-}
-
-// calculates all networks' outputs concurrently. After this networks will have ready to be extracted outputs
-func (myNeuralNetwork *neuralNetwork) calculateOutputs(inputData []float64) error {
-	err := myNeuralNetwork.validateInputData(inputData)
+func (neuralNet *neuralNetwork) GetNetworkResult(inputData []float64) (string, error) {
+	err := neuralNet.validateInputData(inputData)
 	if err != nil {
+		return "", err
+	}
+
+	label, _ := neuralNet.network.GetBestOutput(inputData)
+	return label, nil
+}
+
+// Returns the amount of network's input nodes
+func (neuralNet *neuralNetwork) NumberOfInputNodes() int {
+	nodesPerLayer := neuralNet.network.GetNetworkStructure()
+	return nodesPerLayer[0]
+}
+
+// Returns the amount of network's output nodes
+func (neuralNet *neuralNetwork) NumberOfOutputNodes() int {
+	nodesPerLayer := neuralNet.network.GetNetworkStructure()
+	return nodesPerLayer[len(nodesPerLayer)-1]
+}
+
+// Assings the given data to the trainer replacing the old data
+func (neuralNet *neuralNetwork) LoadTrainingData(inputs [][]float64, outputs []string) error {
+	if err := neuralNet.validateTrainingInputData(inputs, outputs); err != nil {
 		return err
 	}
 
-	numberOfWorkers := runtime.NumCPU()
-	netChan := make(chan *network.Network)
-	var wg sync.WaitGroup
-	wg.Add(len(myNeuralNetwork.networks))
-	for i := 0; i < numberOfWorkers; i++ {
-		go func(wg *sync.WaitGroup, netChan chan *network.Network) {
-			for net := range netChan {
-				net.CalculateOutput(wg, inputData)
-			}
-		}(&wg, netChan)
+	for i := 0; i < len(inputs); i++ {
+		var data network.Data
+		data.SetData(inputs[i], outputs[i])
+		neuralNet.trainingData = append(neuralNet.trainingData, data)
 	}
-	for _, net := range myNeuralNetwork.networks {
-		netChan <- &net
+	return nil
+}
+
+// Appends given given data set to training data sets
+func (neuralNet *neuralNetwork) AddSingleTrainingData(input []float64, output string) error {
+	if err := neuralNet.validateTrainingInputData([][]float64{input}, []string{output}); err != nil {
+		return err
 	}
-	close(netChan)
 
-	wg.Wait()
-
+	var newData network.Data
+	newData.SetData(input, output)
+	neuralNet.trainingData = append(neuralNet.trainingData, newData)
 	return nil
 }
