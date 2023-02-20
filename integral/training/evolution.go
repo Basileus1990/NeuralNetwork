@@ -9,92 +9,91 @@ import (
 )
 
 // a number determining the range of random mutations
-const strengthOfEvolution = 0.1
+const strengthOfEvolution = 10
+
+// determines how much children are created in comparison to number of parents (0, inf)
+const percentageOfChildrenToParents = 1
+
+// determines wheter the network will favour the best networks while mating
+const favourBestNetworksWhileMating = false
 
 // determines what weight will the network get -> every next gets multiplied by this number (0,1)
 const maxNetworksSurvivorsWeight = 0.8
 
-// a percentage of how much of a generation survives (0,1)
-const selectionHarshness = 0.5
-
 func (trainer *Trainer) evolutionTraining() error {
 	trainer.calculateAverageCosts()
-	survivors, err := trainer.selectNetworksToSurvive()
-	if err != nil {
-		return err
+	if favourBestNetworksWhileMating {
+		err := trainer.createNewFavouredGeneration(getSortedNetworks(&trainer.networks))
+		if err != nil {
+			return err
+		}
+	} else {
+		trainer.createNewRandomGeneration()
 	}
-	err = trainer.createNewGeneration(survivors)
-	if err != nil {
-		return err
-	}
+	trainer.calculateAverageCosts()
+	trainer.killWorstNetworks()
 
 	return nil
 }
 
-// returns a slice of copies of the networks which will survive
-// it takes mostly the best ones but has some change for selecting worse ones instead of the best
-func (trainer *Trainer) selectNetworksToSurvive() (survivors []network.Network, err error) {
-	numberToSurvive := int(float64(len(trainer.networksAndCosts)) * selectionHarshness)
-	sortedNetworks := trainer.getSortedNetworks()
-
-	// randomly selects a indexes of networks to be killed
-	deadOnes := make([]int, rand.Intn(len(trainer.networksAndCosts)-numberToSurvive))
-	for i := range deadOnes {
-		deadOnes[i] = rand.Intn(len(trainer.networksAndCosts))
+func (trainer *Trainer) killWorstNetworks() {
+	sortedNet := getSortedNetworks(&trainer.networks)
+	newNetworks := make([]network.Network, trainer.numberOfNetworks)
+	for i := range newNetworks {
+		newNetworks[i] = *sortedNet[i]
 	}
-
-	for i := 0; i < len(sortedNetworks) && len(survivors) < numberToSurvive; i++ {
-		isDead := false
-		for _, v := range deadOnes {
-			if v == i {
-				isDead = true
-				break
-			}
-		}
-		if isDead {
-			continue
-		}
-		netCopy, err := trainer.networksAndCosts[i].network.CopyNetwork()
-		if err != nil {
-			return nil, err
-		}
-		survivors = append(survivors, netCopy)
-	}
-
-	return survivors, nil
+	trainer.networks = newNetworks
 }
 
 // replaces values from the original networks with mutated values from the survivors
 // uses mating mechanic - for one new gen net takes values randomly from 2 survivors
 // mates randomly but lowest cost networks have an advantage
-func (trainer *Trainer) createNewGeneration(survivors []network.Network) error {
-	maxSurvivorWeight := getMaxSurvivorWeight(len(survivors))
-	for i := range trainer.networksAndCosts {
+func (trainer *Trainer) createNewFavouredGeneration(sortedNet []*network.Network) error {
+	numberOfChildren := int(float64(len(trainer.networks)) * percentageOfChildrenToParents)
+	children := make([]network.Network, 0, numberOfChildren)
+	maxWeight := getMaxSurvivorWeight(len(trainer.networks))
+
+	for i := 0; i < numberOfChildren; i++ {
 		// loops until it finds two diffrent survivors
-		firstNetIndex, err := getRandomSurvivorIndex(len(survivors), maxSurvivorWeight)
-		secondNetIndex := -1
+		first, err := getRandomWeightedIndex(len(trainer.networks), maxWeight)
 		if err != nil {
 			return err
 		}
-		for {
-			secondNetIndex, err = getRandomSurvivorIndex(len(survivors), maxSurvivorWeight)
+		second := -1
+		for first != second {
+			second, err = getRandomWeightedIndex(len(trainer.networks), maxWeight)
 			if err != nil {
 				return err
 			}
-			if firstNetIndex != secondNetIndex {
-				break
-			}
 		}
-		createChildFromSurvivors(trainer.networksAndCosts[i].network, survivors[firstNetIndex], survivors[secondNetIndex])
+		children = append(children, createChildFromParents(*sortedNet[first], *sortedNet[second]))
 	}
+	trainer.networks = append(trainer.networks, children...)
 	return nil
 }
 
+// Creates new child networks from the parents and appends them to the trainer
+// Parents are chosen randomly
+func (trainer *Trainer) createNewRandomGeneration() {
+	numberOfChildren := int(float64(len(trainer.networks)) * percentageOfChildrenToParents)
+	children := make([]network.Network, 0, numberOfChildren)
+	for i := 0; i < numberOfChildren; i++ {
+		// loops until it finds two diffrent survivors
+		first := rand.Intn(len(trainer.networks))
+		second := -1
+		for first != second {
+			second = rand.Intn(len(trainer.networks))
+		}
+		children = append(children, createChildFromParents(trainer.networks[first], trainer.networks[second]))
+	}
+	trainer.networks = append(trainer.networks, children...)
+}
+
 // returns an random(but using weights) number from [0,numberOfSurvivors)
-func getRandomSurvivorIndex(numberOfSurvivors int, maxSurvivorWeight float64) (randomSurvivorIndex int, err error) {
-	random := rand.Float64() * maxSurvivorWeight
+func getRandomWeightedIndex(numberOfNet int, maxWeight float64) (int, error) {
+	random := rand.Float64() * maxWeight
 	currentWeight := 0.0
-	for i := 0; i < numberOfSurvivors; i++ {
+	for i := 0; i < numberOfNet; i++ {
 		currentWeight += math.Pow(maxNetworksSurvivorsWeight, float64(i))
 		if random <= currentWeight {
 			return i, nil
@@ -105,66 +104,51 @@ func getRandomSurvivorIndex(numberOfSurvivors int, maxSurvivorWeight float64) (r
 
 // sets weights and biases of the given network with the values of parents
 // the value taken from parents is taken from them  in ratio50/50
-func createChildFromSurvivors(net *network.Network, firstParent network.Network, secondParent network.Network) error {
-	numberOfLayers, nodesPerLayer := net.NetworkStructure()
+func createChildFromParents(first, second network.Network) network.Network {
+	nodesPerLayer := first.GetNetworkStructure()
+	var child network.Network
+	child.InitializeEmptyNetwork(nodesPerLayer, first.GetOutputLabels())
 	// iterating over layers
-	for i := 0; i < numberOfLayers; i++ {
+	for i := 0; i < len(nodesPerLayer); i++ {
 		// iterating over all nodes in a layer
 		for j := 0; j < nodesPerLayer[i]; j++ {
-			setBias(net, firstParent, secondParent, i, j)
+			setBias(&child, first, second, i, j)
 
 			// iteratig over all node's weights
-			for k := 0; i != numberOfLayers-1 && k < nodesPerLayer[i+1]; k++ {
-				setWeight(net, firstParent, secondParent, i, j, k)
+			for k := 0; i != len(nodesPerLayer)-1 && k < nodesPerLayer[i+1]; k++ {
+				setWeight(&child, first, second, i, j, k)
 			}
 		}
 	}
-	return nil
+	return child
 }
 
 // sets the given network's bias with randomly(50/50) selected parent's bias
-func setBias(net *network.Network, firstParent network.Network, secondParent network.Network, i, j int) error {
+func setBias(net *network.Network, first, second network.Network, i, j int) {
 	var newBias float64
-	var err error
 	if rand.Intn(2) == 0 {
-		newBias, err = firstParent.GetNodeBias(i, j)
+		newBias = first.GetNodeBias(i, j)
 	} else {
-		newBias, err = secondParent.GetNodeBias(i, j)
-	}
-	if err != nil {
-		return err
+		newBias = second.GetNodeBias(i, j)
 	}
 	randomMutation := (rand.Float64() - 0.5) * 2 * strengthOfEvolution
 	newBias += randomMutation
 
-	err = net.SetNodeBias(i, j, newBias)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	net.SetNodeBias(i, j, newBias)
 }
 
 // sets the given network's weight with randomly(50/50) selected parent's weight
-func setWeight(net *network.Network, firstParent network.Network, secondParent network.Network, i, j, k int) error {
+func setWeight(net *network.Network, first, second network.Network, i, j, k int) error {
 	var newWeight float64
-	var err error
 	if rand.Intn(2) == 0 {
-		newWeight, err = firstParent.GetNodeWeight(i, j, k)
+		newWeight = first.GetNodeWeight(i, j, k)
 	} else {
-		newWeight, err = secondParent.GetNodeWeight(i, j, k)
-	}
-	if err != nil {
-		return err
+		newWeight = second.GetNodeWeight(i, j, k)
 	}
 	randomMutation := (rand.Float64() - 0.5) * 2 * strengthOfEvolution
 	newWeight += randomMutation
 
-	err = net.SetNodeWeight(i, j, k, newWeight)
-	if err != nil {
-		return err
-	}
-
+	net.SetNodeWeight(i, j, k, newWeight)
 	return nil
 }
 

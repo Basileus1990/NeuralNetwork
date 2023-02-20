@@ -1,6 +1,7 @@
 package NeuralNetwork
 
 import (
+	"sync"
 	"testing"
 )
 
@@ -243,7 +244,7 @@ func TestCalculatingCosts(t *testing.T) {
 			t.Fatal(myData, err)
 		}
 
-		myNetwork.network.CalculateCost(myNetwork.trainingDataSets)
+		myNetwork.network.CalculateCost(&sync.Mutex{}, myNetwork.trainingData)
 		if myNetwork.network.GetCost() < 0 {
 			t.Fatal("calculated cost is incorect: ", myNetwork.network.GetCost(), myData)
 		}

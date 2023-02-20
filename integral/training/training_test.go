@@ -6,98 +6,57 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Basileus1990/NeuralNetwork.git/network"
+	"github.com/Basileus1990/NeuralNetwork.git/integral/network"
 )
 
-func createDummyNetworkTrainer() (*Trainer, error) {
+func createDummyNetworkTrainer() *Trainer {
 	// for testing purposes
 	rand.Seed(time.Now().UnixNano())
 
-	dummyNetwork := make([]network.Network, 50)
-	for i := range dummyNetwork {
-		dummyNetwork[i].InitializeNetwork([]int{3, 6, 3})
-	}
-	trainer, err := NewTrainer(&dummyNetwork, []string{"1", "2", "welp"})
-	if err != nil {
-		return trainer, err
-	}
-	return trainer, nil
-}
-
-/////////////////////////////////////////////////////////////
-////			    Calculating Cost Tests			     ////
-/////////////////////////////////////////////////////////////
-
-func TestCalculatingCosts(t *testing.T) {
-	trainer, err := createDummyNetworkTrainer()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	type data struct {
-		input          [][]float64
-		expectedOutput []string
-	}
-
-	goodData := []data{
-		{[][]float64{{1, 0.5, 0.6}, {1, 0.5, 0.6}, {1, 0.5, 0.6}}, []string{"1", "2", "1"}},
-		{[][]float64{{1, 0.5, 0.6}}, []string{"2"}},
-		{[][]float64{{1, 0, 0.6}}, []string{"1"}},
-	}
-	for _, myData := range goodData {
-		err := trainer.LoadTrainingData(myData.input, myData.expectedOutput)
-		if err != nil {
-			t.Fatal(myData, err)
-		}
-
-		trainer.calculateAverageCosts()
-		for _, v := range trainer.networksAndCosts {
-			if v.cost < 0 {
-				t.Fatal("calculated cost is incorect: ", v.cost, myData)
-			}
-		}
-	}
+	var net network.Network
+	net.InitializeNetwork([]int{3, 6, 3}, []string{"1", "2", "3"})
+	trainer := NewTrainer(net, 20)
+	return trainer
 }
 
 /////////////////////////////////////////////////////////////
 ////			    	Evolution Tests				     ////
 /////////////////////////////////////////////////////////////
 
-func TestSelectingOnesToSurvive(t *testing.T) {
-	trainer, err := createDummyNetworkTrainer()
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestCreatingNewGeneration(t *testing.T) {
 
-	type data struct {
-		input          [][]float64
-		expectedOutput []string
-	}
+	goodData := make([]network.DataSets, 3)
+	data := network.Data{}
+	data.SetData([]float64{1, 0.5, 0.6}, "1")
+	goodData[0] = append(goodData[0], data)
+	data.SetData([]float64{1, 0.5, 0.6}, "2")
+	goodData[0] = append(goodData[0], data)
+	data.SetData([]float64{1, 0.5, 0.6}, "3")
+	goodData[0] = append(goodData[0], data)
 
-	goodData := []data{
-		{[][]float64{{1, 0.5, 0.6}, {1, 0.5, 0.6}, {1, 0.5, 0.6}}, []string{"1", "2", "1"}},
-		{[][]float64{{1, 0.5, 0.6}}, []string{"2"}},
-		{[][]float64{{1, 0, 0.6}}, []string{"1"}},
-	}
+	data.SetData([]float64{1, 1, 1}, "1")
+	goodData[1] = append(goodData[1], data)
+
+	data.SetData([]float64{0, 0, 0}, "3")
+	goodData[2] = append(goodData[2], data)
 	for _, myData := range goodData {
-		err := trainer.LoadTrainingData(myData.input, myData.expectedOutput)
-		if err != nil {
-			t.Fatal(myData, err)
-		}
+		trainer := createDummyNetworkTrainer()
+		trainer.trainDataSets = goodData[0]
 
 		trainer.calculateAverageCosts()
-		net, err := trainer.selectNetworksToSurvive()
+		err := trainer.createNewFavouredGeneration(getSortedNetworks(&trainer.networks))
 		if err != nil {
 			t.Fatal(err, myData)
 		}
-		if len(net) != int(float64(len(trainer.networksAndCosts))*selectionHarshness) {
-			t.Fatal("number of survivors is incorrect: ", len(net))
+		if len(trainer.networks) != trainer.numberOfNetworks+int(float64(trainer.numberOfNetworks)*percentageOfChildrenToParents) {
+			t.Fatal("number of new generation networks is incorrect: ", len(trainer.networks)-trainer.numberOfNetworks)
 		}
 	}
 }
 
 // generates random colors and returns the color and wheter it is red or not
-func createTrainingData(numberOfData int) (inputs [][]float64, expOutput []string) {
+func createTrainingData(numberOfData int) network.DataSets {
+	var dataSets network.DataSets
 	for i := 0; i < numberOfData; i++ {
 		input := make([]float64, 3)
 		red := rand.Intn(256)
@@ -112,82 +71,54 @@ func createTrainingData(numberOfData int) (inputs [][]float64, expOutput []strin
 		} else {
 			label = "notRed"
 		}
-		inputs = append(inputs, input)
-		expOutput = append(expOutput, label)
+		var data network.Data
+		data.SetData(input, label)
+		dataSets = append(dataSets, data)
 	}
 
-	return inputs, expOutput
+	return dataSets
 }
 
 func getNetworkAccuracy(trainer *Trainer) float64 {
-	previousBestCost := trainer.networksAndCosts[0].cost
-	bestIndex := 0
-	for i, v := range trainer.networksAndCosts {
-		if previousBestCost > v.cost {
-			previousBestCost = v.cost
-			bestIndex = i
-		}
+	bestNet := getSortedNetworks(&trainer.networks)[0]
+	for _, v := range getSortedNetworks(&trainer.networks) {
+		log.Println(v.GetCost())
 	}
+	// for _, v := range trainer.networks {
+	// 	log.Println(v.GetCost())
+	// }
+	log.Println("...")
 	amountOfCorrect := 0
-	for _, data := range trainer.dataSets {
-		trainer.networksAndCosts[bestIndex].network.CalculateOutput(nil, data.input)
-		output := trainer.networksAndCosts[bestIndex].network.GetOutputValuesSlice()
-		bestOutputIndex := 0
-		for i := 1; i < len(output); i++ {
-			if output[bestOutputIndex] < output[i] {
-				bestOutputIndex = i
-			}
-		}
-		if data.expectedOutput == trainer.outputLabels[bestOutputIndex] {
+	for _, data := range trainer.trainDataSets {
+		bestOutputLabel, _ := bestNet.GetBestOutput(data.GetInputs())
+		if data.GetExpOutput() == bestOutputLabel {
 			amountOfCorrect++
 		}
 	}
-	return float64(amountOfCorrect) / float64(len(trainer.dataSets))
+	return float64(amountOfCorrect) / float64(len(trainer.trainDataSets))
 }
 
 func TestEvolution(t *testing.T) {
 	// for testing purposes
 	rand.Seed(time.Now().UnixNano())
 
-	dummyNetwork := make([]network.Network, 50)
-	for i := range dummyNetwork {
-		dummyNetwork[i].InitializeNetwork([]int{3, 2})
-	}
-	trainer, err := NewTrainer(&dummyNetwork, []string{"red", "notRed"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	var net network.Network
+	net.InitializeNetwork([]int{3, 3, 2}, []string{"red", "notRed"})
+	trainer := NewTrainer(net, 10)
 
-	inputs, expOutputs := createTrainingData(1000)
-	err = trainer.LoadTrainingData(inputs, expOutputs)
-	if err != nil {
-		t.Fatal(err)
-	}
+	trainer.trainDataSets = createTrainingData(1000)
 
 	trainer.calculateAverageCosts()
-	log.Println(getNetworkAccuracy(trainer))
-	previousBestCost := trainer.networksAndCosts[0].cost
-	for _, v := range trainer.networksAndCosts {
-		if previousBestCost > v.cost {
-			previousBestCost = v.cost
-		}
-	}
-	for i := 0; i < 100; i++ {
+	beforeAccuracy := getNetworkAccuracy(trainer)
+	for i := 0; i < 1000; i++ {
 		trainer.evolutionTraining()
-		if err != nil {
-			t.Fatal(err)
-		}
 	}
+	//trainer.trainDataSets = createTrainingData(1000)
 	trainer.calculateAverageCosts()
-	newBestCost := trainer.networksAndCosts[0].cost
-	for _, v := range trainer.networksAndCosts {
-		if newBestCost > v.cost {
-			newBestCost = v.cost
-		}
-	}
+	afterAccuracy := getNetworkAccuracy(trainer)
 
-	log.Println(getNetworkAccuracy(trainer))
-	if newBestCost > previousBestCost {
+	log.Println("Before: ", beforeAccuracy, ", After: ", afterAccuracy)
+	if afterAccuracy < beforeAccuracy {
 		t.Fatal("Evolution - previous generations are better than new ones")
 	}
 

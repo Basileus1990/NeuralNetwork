@@ -1,6 +1,9 @@
 package network
 
-import "math"
+import (
+	"math"
+	"sync"
+)
 
 type Network struct {
 	layers       []layer
@@ -22,6 +25,21 @@ func (net *Network) InitializeNetwork(nodesPerLayer []int, outputLabels []string
 		net.layers[i].initializeLayer(nodesPerLayer[i], nodesPerLayer[i+1], &net.layers[i-1], &net.layers[i+1])
 	}
 	net.layers[len(net.layers)-1].initializeLayer(nodesPerLayer[len(net.layers)-1], 0, &net.layers[len(net.layers)-2], nil)
+}
+
+func (net *Network) InitializeEmptyNetwork(nodesPerLayer []int, outputLabels []string) {
+	net.outputLabels = outputLabels
+	net.layers = make([]layer, len(nodesPerLayer))
+	if len(net.layers) == 1 {
+		net.layers[0].initializeEmptyLayer(nodesPerLayer[0], 0, nil, nil)
+		return
+	}
+
+	net.layers[0].initializeEmptyLayer(nodesPerLayer[0], nodesPerLayer[1], nil, &net.layers[1])
+	for i := 1; i < len(net.layers)-1; i++ {
+		net.layers[i].initializeEmptyLayer(nodesPerLayer[i], nodesPerLayer[i+1], &net.layers[i-1], &net.layers[i+1])
+	}
+	net.layers[len(net.layers)-1].initializeEmptyLayer(nodesPerLayer[len(net.layers)-1], 0, &net.layers[len(net.layers)-2], nil)
 }
 
 // returns the structure of the network - number of layers and nodes per layer
@@ -57,9 +75,10 @@ func (net *Network) calculateOutput(inputData []float64) {
 }
 
 // calculates network's average cost for given data sets
-func (net *Network) CalculateCost(dataSets []DataSet) {
+func (net *Network) CalculateCost(lock *sync.Mutex, dataSets DataSets) {
 	combinedCost := 0.0
-	for _, data := range dataSets {
+	for i := range dataSets {
+		data := dataSets.GetSafeDataSetCopy(lock, i)
 		for key, value := range net.GetOutputsMap(data.inputs) {
 			if key == data.expectedOutput {
 				combinedCost += math.Pow(1-value, 2) //FIXME: make it usable for something other than simgoid
@@ -105,74 +124,56 @@ func (net *Network) GetBestOutput(inputData []float64) (string, float64) {
 }
 
 // returns weight and bias of requested node
-func (net *Network) GetNodeBias(layerIndex, nodeIndex int) (bias float64, err error) {
-	if err := net.validateBiasIndex(layerIndex, nodeIndex); err != nil {
-		return 0, err
-	}
-
-	bias = net.layers[layerIndex].nodes[nodeIndex].bias
-	return bias, nil
+func (net *Network) GetNodeBias(layerIndex, nodeIndex int) float64 {
+	bias := net.layers[layerIndex].nodes[nodeIndex].bias
+	return bias
 }
 
 // returns weight of requested node
-func (net *Network) GetNodeWeight(layerIndex, nodeIndex, weightIndex int) (weight float64, err error) {
-	if err := net.validateWeightIndex(layerIndex, nodeIndex, weightIndex); err != nil {
-		return 0, err
-	}
-
-	weight = net.layers[layerIndex].nodes[nodeIndex].weights[weightIndex]
-	return weight, nil
+func (net *Network) GetNodeWeight(layerIndex, nodeIndex, weightIndex int) float64 {
+	weight := net.layers[layerIndex].nodes[nodeIndex].weights[weightIndex]
+	return weight
 }
 
 // sets bias of requested node if arguments are correct
-func (net *Network) SetNodeBias(layerIndex, nodeIndex int, newBias float64) (err error) {
-	if err := net.validateBiasIndex(layerIndex, nodeIndex); err != nil {
-		return err
-	}
-
+func (net *Network) SetNodeBias(layerIndex, nodeIndex int, newBias float64) {
 	net.layers[layerIndex].nodes[nodeIndex].bias = newBias
-	return nil
 }
 
 // sets weight of requested node's weight if arguments are correct
-func (net *Network) SetNodeWeight(layerIndex, nodeIndex, weightIndex int, newWeight float64) (err error) {
-	if err := net.validateWeightIndex(layerIndex, nodeIndex, weightIndex); err != nil {
-		return err
-	}
-
+func (net *Network) SetNodeWeight(layerIndex, nodeIndex, weightIndex int, newWeight float64) {
 	net.layers[layerIndex].nodes[nodeIndex].weights[weightIndex] = newWeight
-	return nil
 }
 
 // returns a network with the same structure, wieghts and biases
-func (net *Network) CopyNetwork() (copy Network, err error) {
-	nodesPerLayer := net.GetNetworkStructure()
-	copy.InitializeNetwork(nodesPerLayer, net.outputLabels)
-	// iterating over all layers
-	for i := 0; i < len(nodesPerLayer); i++ {
-		// iterating over all nodes in a layer
-		for j := 0; j < nodesPerLayer[i]; j++ {
-			bias, err := net.GetNodeBias(i, j)
-			if err != nil {
-				return copy, err
-			}
-			err = copy.SetNodeBias(i, j, bias)
-			if err != nil {
-				return copy, err
-			}
+// func (net *Network) CopyNetwork() (copy Network, err error) {
+// 	nodesPerLayer := net.GetNetworkStructure()
+// 	copy.InitializeNetwork(nodesPerLayer, net.outputLabels)
+// 	// iterating over all layers
+// 	for i := 0; i < len(nodesPerLayer); i++ {
+// 		// iterating over all nodes in a layer
+// 		for j := 0; j < nodesPerLayer[i]; j++ {
+// 			bias, err := net.GetNodeBias(i, j)
+// 			if err != nil {
+// 				return copy, err
+// 			}
+// 			err = copy.SetNodeBias(i, j, bias)
+// 			if err != nil {
+// 				return copy, err
+// 			}
 
-			// iteratig over all weights
-			for k := 0; i != len(nodesPerLayer)-1 && k < nodesPerLayer[i+1]; k++ {
-				weight, err := net.GetNodeWeight(i, j, k)
-				if err != nil {
-					return copy, err
-				}
-				err = copy.SetNodeWeight(i, j, k, weight)
-				if err != nil {
-					return copy, err
-				}
-			}
-		}
-	}
-	return copy, nil
-}
+// 			// iteratig over all weights
+// 			for k := 0; i != len(nodesPerLayer)-1 && k < nodesPerLayer[i+1]; k++ {
+// 				weight, err := net.GetNodeWeight(i, j, k)
+// 				if err != nil {
+// 					return copy, err
+// 				}
+// 				err = copy.SetNodeWeight(i, j, k, weight)
+// 				if err != nil {
+// 					return copy, err
+// 				}
+// 			}
+// 		}
+// 	}
+// 	return copy, nil
+// }

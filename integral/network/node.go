@@ -36,6 +36,9 @@ func (myNode *node) initializeEmptyNode(prevLayer *layer, nextLayer *layer, numb
 	myNode.prevLayer = prevLayer
 	myNode.nextLayer = nextLayer
 	myNode.bias = 0
+	if nextLayer == nil {
+		return
+	}
 	myNode.weights = make([]float64, numberOfNextNodes)
 }
 

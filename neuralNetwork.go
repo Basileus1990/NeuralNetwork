@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Basileus1990/NeuralNetwork.git/integral/network"
+	"github.com/Basileus1990/NeuralNetwork.git/integral/training"
 )
 
 // for random generation of mutations and random initialization
@@ -15,8 +16,9 @@ func init() {
 
 type neuralNetwork struct {
 	network                  network.Network
+	trainer                  training.Trainer
 	numberOfTrainingNetworks int
-	trainingDataSets         []network.DataSet
+	trainingData             network.DataSets
 }
 
 // Retruns an initialized neural network ready to be given data and to be trained.
@@ -85,12 +87,11 @@ func (neuralNet *neuralNetwork) LoadTrainingData(inputs [][]float64, outputs []s
 		return err
 	}
 
-	dataSets := make([]network.DataSet, len(inputs))
-	for i := 0; i < len(dataSets); i++ {
-		dataSets[i].SetDataSet(inputs[i], outputs[i])
+	for i := 0; i < len(inputs); i++ {
+		var data network.Data
+		data.SetData(inputs[i], outputs[i])
+		neuralNet.trainingData = append(neuralNet.trainingData, data)
 	}
-
-	neuralNet.trainingDataSets = dataSets
 	return nil
 }
 
@@ -100,8 +101,8 @@ func (neuralNet *neuralNetwork) AddSingleTrainingData(input []float64, output st
 		return err
 	}
 
-	var newDataSet network.DataSet
-	newDataSet.SetDataSet(input, output)
-	neuralNet.trainingDataSets = append(neuralNet.trainingDataSets, newDataSet)
+	var newData network.Data
+	newData.SetData(input, output)
+	neuralNet.trainingData = append(neuralNet.trainingData, newData)
 	return nil
 }
