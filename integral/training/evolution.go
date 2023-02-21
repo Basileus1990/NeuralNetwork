@@ -12,16 +12,17 @@ import (
 const strengthOfEvolution = 10
 
 // determines how much children are created in comparison to number of parents (0, inf)
-const percentageOfChildrenToParents = 1
+// heavy performance impact
+const percentageOfChildrenToParents = 0.5
 
 // determines wheter the network will favour the best networks while mating
-const favourBestNetworksWhileMating = false
+const favourBestNetworksWhileMating = true
 
 // determines what weight will the network get -> every next gets multiplied by this number (0,1)
 const maxNetworksSurvivorsWeight = 0.8
 
 func (trainer *Trainer) evolutionTraining() error {
-	trainer.calculateAverageCosts()
+	calculateAverageCosts(&trainer.networks, trainer.trainDataSets)
 	if favourBestNetworksWhileMating {
 		err := trainer.createNewFavouredGeneration(getSortedNetworks(&trainer.networks))
 		if err != nil {
@@ -30,7 +31,6 @@ func (trainer *Trainer) evolutionTraining() error {
 	} else {
 		trainer.createNewRandomGeneration()
 	}
-	trainer.calculateAverageCosts()
 	trainer.killWorstNetworks()
 
 	return nil
@@ -45,9 +45,8 @@ func (trainer *Trainer) killWorstNetworks() {
 	trainer.networks = newNetworks
 }
 
-// replaces values from the original networks with mutated values from the survivors
-// uses mating mechanic - for one new gen net takes values randomly from 2 survivors
-// mates randomly but lowest cost networks have an advantage
+// Creates new child networks from the parents and appends them to the trainer
+// Parents are chosen using weights -> the parent with the lowest cost has the advantage
 func (trainer *Trainer) createNewFavouredGeneration(sortedNet []*network.Network) error {
 	numberOfChildren := int(float64(len(trainer.networks)) * percentageOfChildrenToParents)
 	children := make([]network.Network, 0, numberOfChildren)
@@ -68,6 +67,7 @@ func (trainer *Trainer) createNewFavouredGeneration(sortedNet []*network.Network
 		}
 		children = append(children, createChildFromParents(*sortedNet[first], *sortedNet[second]))
 	}
+	calculateAverageCosts(&children, trainer.trainDataSets)
 	trainer.networks = append(trainer.networks, children...)
 	return nil
 }
@@ -86,6 +86,7 @@ func (trainer *Trainer) createNewRandomGeneration() {
 		}
 		children = append(children, createChildFromParents(trainer.networks[first], trainer.networks[second]))
 	}
+	calculateAverageCosts(&children, trainer.trainDataSets)
 	trainer.networks = append(trainer.networks, children...)
 }
 
@@ -138,7 +139,7 @@ func setBias(net *network.Network, first, second network.Network, i, j int) {
 }
 
 // sets the given network's weight with randomly(50/50) selected parent's weight
-func setWeight(net *network.Network, first, second network.Network, i, j, k int) error {
+func setWeight(net *network.Network, first, second network.Network, i, j, k int) {
 	var newWeight float64
 	if rand.Intn(2) == 0 {
 		newWeight = first.GetNodeWeight(i, j, k)
@@ -149,7 +150,6 @@ func setWeight(net *network.Network, first, second network.Network, i, j, k int)
 	newWeight += randomMutation
 
 	net.SetNodeWeight(i, j, k, newWeight)
-	return nil
 }
 
 // returns the maximal weight for a survivor for the amount of the survivors

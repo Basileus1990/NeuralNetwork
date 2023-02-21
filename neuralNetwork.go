@@ -1,6 +1,7 @@
 package NeuralNetwork
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"time"
@@ -24,7 +25,7 @@ type neuralNetwork struct {
 // Retruns an initialized neural network ready to be given data and to be trained.
 // Number of training networks has to be bigger than 0.
 // Amount of layers and nodes has to bigger than 0.
-// amount of output labels has to be equal to number of output nodes
+// Amount of output labels has to be equal to number of output nodes
 func NewNeuralNetwork(numberOfTrainingNetworks int, nodesPerLayer []int, outputLabels []string) (*neuralNetwork, error) {
 	if err := validateNetworkInit(numberOfTrainingNetworks, nodesPerLayer, outputLabels); err != nil {
 		return nil, err
@@ -67,6 +68,23 @@ func (neuralNet *neuralNetwork) GetNetworkResult(inputData []float64) (string, e
 
 	label, _ := neuralNet.network.GetBestOutput(inputData)
 	return label, nil
+}
+
+// Trains the network iterations times.
+// The training data has to be loaded first
+func (neuralNet *neuralNetwork) Train(iterations int) error {
+	if iterations <= 0 {
+		return errors.New("number of iterations has to be bigger than one")
+	} else if len(neuralNet.trainingData) == 0 {
+		return errors.New("the training data hasn't been yet loaded")
+	}
+
+	if !neuralNet.trainer.Initialized {
+		neuralNet.trainer = training.NewTrainer(neuralNet.network, neuralNet.numberOfTrainingNetworks)
+	}
+
+	neuralNet.trainer.Train(neuralNet.trainingData, iterations)
+	return nil
 }
 
 // Returns the amount of network's input nodes

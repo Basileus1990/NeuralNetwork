@@ -1,7 +1,6 @@
 package training
 
 import (
-	"errors"
 	"runtime"
 	"sort"
 	"sync"
@@ -19,11 +18,11 @@ type Trainer struct {
 	networks         []network.Network
 	numberOfNetworks int
 	trainDataSets    network.DataSets
-	locker           sync.Mutex
+	Initialized      bool
 }
 
 // Initializes the trainer and creates training networks
-func NewTrainer(originalNet network.Network, numberOfNet int) *Trainer {
+func NewTrainer(originalNet network.Network, numberOfNet int) Trainer {
 	var trainer Trainer
 	trainer.numberOfNetworks = numberOfNet
 	trainer.networks = append(trainer.networks, originalNet)
@@ -34,22 +33,16 @@ func NewTrainer(originalNet network.Network, numberOfNet int) *Trainer {
 		trainer.networks = append(trainer.networks, newNet)
 	}
 
-	return &trainer
+	trainer.Initialized = true
+	return trainer
 }
 
 // trains the network iterations times with training dataset
 func (trainer *Trainer) Train(dataSets network.DataSets, iterations int) error {
-	if iterations <= 0 {
-		return errors.New("number of iterations has to be bigger than one")
-	}
-	if len(dataSets) == 0 {
-		return errors.New("the training data hasn't been yet loaded")
-	}
 	trainer.trainDataSets = dataSets
 
 	for i := 0; i < iterations; i++ {
-		// with single network evolution training doesn't make sense
-		if evolutionTraining && trainer.numberOfNetworks > 1 {
+		if evolutionTraining {
 			err := trainer.evolutionTraining()
 			if err != nil {
 				return err
@@ -65,22 +58,24 @@ func (trainer *Trainer) Train(dataSets network.DataSets, iterations int) error {
 
 // calculate concurrently an average cost for every network for all training datasets
 // and add them to trainer's costs map
-func (trainer *Trainer) calculateAverageCosts() {
+func calculateAverageCosts(networks *[]network.Network, dataSets network.DataSets) {
 	numberOfWorkers := runtime.NumCPU()
 	netChan := make(chan *network.Network)
 	var wg sync.WaitGroup
-	wg.Add(len(trainer.networks))
+	wg.Add(len(*networks))
+	lock := sync.Mutex{}
+
 	for i := 0; i < numberOfWorkers; i++ {
 		go func(wg *sync.WaitGroup, netChan chan *network.Network) {
 			for net := range netChan {
-				net.CalculateCost(&trainer.locker, trainer.trainDataSets)
+				net.CalculateCost(&lock, dataSets)
 				wg.Done()
 			}
 		}(&wg, netChan)
 	}
 
-	for i := range trainer.networks {
-		netChan <- &trainer.networks[i]
+	for i := range *networks {
+		netChan <- &(*networks)[i]
 	}
 	close(netChan)
 	wg.Wait()
@@ -95,11 +90,10 @@ func getSortedNetworks(networks *[]network.Network) []*network.Network {
 		m[(*networks)[i].GetCost()] = &(*networks)[i]
 		sortValues[i] = (*networks)[i].GetCost()
 	}
+
 	sort.Float64s(sortValues)
 	for i := range sortedNetworks {
 		sortedNetworks[i] = m[sortValues[i]]
-		//log.Println(m[sortValues[i]].GetCost())
 	}
-	//log.Println("^^^^^")
 	return sortedNetworks
 }

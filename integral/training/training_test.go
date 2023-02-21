@@ -1,7 +1,6 @@
 package training
 
 import (
-	"log"
 	"math/rand"
 	"testing"
 	"time"
@@ -16,7 +15,7 @@ func createDummyNetworkTrainer() *Trainer {
 	var net network.Network
 	net.InitializeNetwork([]int{3, 6, 3}, []string{"1", "2", "3"})
 	trainer := NewTrainer(net, 20)
-	return trainer
+	return &trainer
 }
 
 /////////////////////////////////////////////////////////////
@@ -43,7 +42,7 @@ func TestCreatingNewGeneration(t *testing.T) {
 		trainer := createDummyNetworkTrainer()
 		trainer.trainDataSets = goodData[0]
 
-		trainer.calculateAverageCosts()
+		calculateAverageCosts(&trainer.networks, trainer.trainDataSets)
 		err := trainer.createNewFavouredGeneration(getSortedNetworks(&trainer.networks))
 		if err != nil {
 			t.Fatal(err, myData)
@@ -81,13 +80,6 @@ func createTrainingData(numberOfData int) network.DataSets {
 
 func getNetworkAccuracy(trainer *Trainer) float64 {
 	bestNet := getSortedNetworks(&trainer.networks)[0]
-	for _, v := range getSortedNetworks(&trainer.networks) {
-		log.Println(v.GetCost())
-	}
-	// for _, v := range trainer.networks {
-	// 	log.Println(v.GetCost())
-	// }
-	log.Println("...")
 	amountOfCorrect := 0
 	for _, data := range trainer.trainDataSets {
 		bestOutputLabel, _ := bestNet.GetBestOutput(data.GetInputs())
@@ -106,18 +98,16 @@ func TestEvolution(t *testing.T) {
 	net.InitializeNetwork([]int{3, 3, 2}, []string{"red", "notRed"})
 	trainer := NewTrainer(net, 10)
 
-	trainer.trainDataSets = createTrainingData(1000)
+	trainer.trainDataSets = createTrainingData(100)
 
-	trainer.calculateAverageCosts()
-	beforeAccuracy := getNetworkAccuracy(trainer)
-	for i := 0; i < 1000; i++ {
+	calculateAverageCosts(&trainer.networks, trainer.trainDataSets)
+	beforeAccuracy := getNetworkAccuracy(&trainer)
+	for i := 0; i < 100; i++ {
 		trainer.evolutionTraining()
 	}
-	//trainer.trainDataSets = createTrainingData(1000)
-	trainer.calculateAverageCosts()
-	afterAccuracy := getNetworkAccuracy(trainer)
+	calculateAverageCosts(&trainer.networks, trainer.trainDataSets)
+	afterAccuracy := getNetworkAccuracy(&trainer)
 
-	log.Println("Before: ", beforeAccuracy, ", After: ", afterAccuracy)
 	if afterAccuracy < beforeAccuracy {
 		t.Fatal("Evolution - previous generations are better than new ones")
 	}
